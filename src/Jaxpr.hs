@@ -3,7 +3,6 @@
 module Jaxpr where
 
 import Data.List (intercalate)
-import Data.List.NonEmpty (cons)
 
 type VarName = String
 
