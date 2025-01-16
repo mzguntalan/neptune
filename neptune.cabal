@@ -74,14 +74,14 @@ library
     hs-source-dirs:   src
 
     -- Base language which the package is written in.
-    default-language: GHC2024
+    default-language: GHC2021
 
 test-suite neptune-test
     -- Import common warning flags.
     import:           warnings
 
     -- Base language which the package is written in.
-    default-language: GHC2024
+    default-language: GHC2021
 
     -- Modules included in this executable, other than Main.
     -- other-modules:
