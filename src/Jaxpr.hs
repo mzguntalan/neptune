@@ -6,9 +6,9 @@ import Data.List (intercalate)
 
 type VarName = String
 
-type Shape = [Integer]
+type Shape = [Int]
 
-data VarType = I32 Shape | I64 Shape | F32 Shape | F64 Shape
+data VarType = I32 Shape | I64 Shape | F32 Shape | F64 Shape deriving (Eq)
 
 instance Show VarType where
     show (I32 s) = "i32" ++ show s
