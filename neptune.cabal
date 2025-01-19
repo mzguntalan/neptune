@@ -59,10 +59,15 @@ library
     import:           warnings
 
     -- Modules exported by the library.
-    exposed-modules: Neptune.ArrayMath 
+    exposed-modules: 
+                     Neptune 
+                     Neptune.ArrayMath
 
     -- Modules included in this library but not exported.
-    other-modules:    Jaxpr
+    other-modules:    
+                      Jaxpr
+                      Jaxpr.Interpreter
+                      Jaxpr.Lax
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:

@@ -13,8 +13,6 @@
 
 module Neptune.ArrayMath where
 
-import GHC.TypeLits
-
 -- idk
 -- what if Neptune was a design oriented language ?
 -- you would define behaviors and shapes until you figure out the implementation details
