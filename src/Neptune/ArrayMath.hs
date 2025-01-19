@@ -30,44 +30,19 @@ type Axis = String
 
 type Shape = [Axis]
 
-data Array = Array ArrayType Shape deriving (Show)
+-- data Array =  deriving (Show)
 
-af32 :: Shape -> Array
+af32 :: Shape -> Expression
 af32 = Array Af32
 
-ai32 :: Shape -> Array
+ai32 :: Shape -> Expression
 ai32 = Array Ai32
 
-rank :: Array -> Int
-rank (Array _ shape) = length shape
+-- but we need to create expressions instead of evaluating them
 
-data Between (low :: Float) (high :: Float) a where
-    Between :: Float -> Float -> a -> Between low high a
-    deriving (Show)
+data Expression = Array ArrayType Shape | Prim NeptunePrimitive [Expression] deriving (Show)
 
-clip :: Float -> Float -> Array -> Between a b Array
-clip = Between
+data NeptunePrimitive = NeptMul | NeptAdd deriving (Show)
 
-clipNum :: Float -> Float -> Float -> Between a b Float
-clipNum a b n
-    | n > b = Between a b b
-    | n < a = Between a b a
-    | otherwise = Between a b n
-
-f :: Between a b Float -> String
-f (Between a b _)
-    | a >= 0.0 && b <= 1.0 = "Valid Range"
-    | otherwise = "Not in valid Range"
-
-mul :: Array -> Array -> Array
-mul (Array Af32 [a, b]) (Array Af32 [c, d])
-    | b == c = af32 [a, d]
-    | otherwise = error "Shape incompatible"
-mul (Array Af32 shape1) (Array Af32 shape2)
-    | length shape1 /= length shape2 = error "Shape incompatible"
-    | length shape1 > 2 = Array Af32 newshape
-  where
-    (a : (b : _)) = reverse shape1
-    (c : (d : _)) = reverse shape2
-    (Array _ newshape) = mul (Array Af32 [a, b]) (Array Af32 [c, d])
-mul _ _ = error "Not implemented"
+mulExp :: Expression -> Expression -> Expression
+mulExp a b = Prim NeptMul [a, b]
