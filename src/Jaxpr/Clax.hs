@@ -5,43 +5,29 @@
 
 module Jaxpr.Clax where
 
-import Jaxpr.Equation
-import Jaxpr.Grammar
-import Jaxpr.Lax as Jlax
+-- focusing on Tracing
 
--- composable lax functions
--- this will be the comfortable low level
--- Jaxpr.Lax are constructors for LaxPrimitive
--- while Clax will mirror Lax, it will handle arbitrary composition/chaining of lax functions
+type VarName = String
+type FuncName = String
 
--- a ClaxExpression will be the only type that clax functions can accept (and finally return)
--- all ClaxExpression should be compilable to a JaxExpr
+data Vartype = Vi | Vf deriving (Show)
+data Variable = Variable VarName Vartype deriving (Show)
+type Output = Variable
+type Input = Variable
+data Function = Function FuncName deriving (Show)
+data Equation = Equation [Output] Function [Input] deriving (Show)
 
-data ClaxExpression = ClaxExpression [ConstVar] [InputVar] [LaxPrimitive] [Expression] -- maybe JaxExpr is the right level of composability
+type CurrentValue = Variable
+data Tracer = Tracer CurrentValue [Equation] deriving (Show)
 
-var :: Variable -> ClaxExpression
-var v = ClaxExpression [] [] [] [Var v]
+var :: Variable -> Tracer
+var x = Tracer x []
 
-unwrapExpressionToVariable :: Expression -> Variable
-unwrapExpressionToVariable (Var v) = v
-unwrapExpressionToVariable (Lit l) = l
+id :: Tracer -> Tracer
+id (Tracer curval eqs) = Tracer curval (Equation [curval] (Function "id") [curval] : eqs)
 
-id :: ClaxExpression -> ClaxExpression
-id (ClaxExpression _ _ _ [x]) = ClaxExpression [] [y] [] [Var y]
+add :: Tracer -> Tracer -> Tracer
+add (Tracer x xEqs) (Tracer y yEqs) = Tracer z (Equation [z] (Function "add") [x, y] : eqs)
   where
-    y = unwrapExpressionToVariable x
-id _ = error "`id` can only accept one array"
-
-add :: ClaxExpression -> ClaxExpression -> ClaxExpression
-add (ClaxExpression _ _ _ [x]) (ClaxExpression _ _ _ [y]) = ClaxExpression [] [a, b] [prim] [Var o]
-  where
-    a = unwrapExpressionToVariable x
-    b = unwrapExpressionToVariable y
-    prim = Jlax.add a b
-    Add _ _ exprO = prim
-    o = unwrapExpressionToVariable exprO
-
-compileClaxToJaxpr :: ClaxExpression -> JaxExpr
-compileClaxToJaxpr (ClaxExpression constvars inputvars prims exprs) = JaxExpr constvars inputvars (map compileLaxToEquation prims) exprs
-
--- todo: at this moment, i realized Variable and Lit are just Arrays ... should probably refactor this soon
+    eqs = xEqs ++ yEqs
+    z = Variable "out" Vf
