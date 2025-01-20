@@ -1,3 +1,9 @@
-module Jaxpr where
+module Jaxpr (
+    module Core,
+)
+where
 
-import Jaxpr.Interpreter
+import Jaxpr.Equation as Core
+import Jaxpr.Grammar as Core
+import Jaxpr.Interpreter as Core
+import Jaxpr.Lax as Core

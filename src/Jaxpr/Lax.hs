@@ -5,24 +5,34 @@
 
 module Jaxpr.Lax where
 
-import Jaxpr.Interpreter
+import Data.Version (Version (versionTags))
+import Jaxpr.Grammar
 
--- reference: jax.lax module
--- provides the primitives and the
---
---
+-- this aims to expose the same functions as in jax.lax
+-- validation should go here
 
-applyLax :: LaxPrimitive -> [Parameter] -> [Variable] -> JaxExpr
-applyLax Abs [] [var] = applyAsUnary Abs [] var
-applyLax Abs [] vars = error ("Abs received the wrong number " ++ show (length vars) ++ " of params should be 1")
-applyLax Abs params [] = error ("Abs received the wrong number " ++ show (length params) ++ " of params should be 0")
-applyLax _ _ _ = error "Not Implemented"
-
-applyAsUnary :: LaxPrimitive -> [Parameter] -> Variable -> JaxExpr
-applyAsUnary unary params var = JaxExpr [] [var] [eq] [Var out]
+abs :: Variable -> LaxPrimitive
+abs (Variable varname vartype) = case vartype of
+    (F32 _) -> Abs var (Var out)
+    (Str _) -> error "`abs` not applicable to Str"
+    _ -> error "Not implemented"
   where
     out = Variable "out" vartype
-    (Variable _ vartype) = var
-    eq = Equation [out] unary params [Var var]
+    var = Variable varname vartype
 
--- applyLax _ _ _ = error "Not Implemented"
+add :: Variable -> Variable -> LaxPrimitive
+add (Variable varname1 vartype1) (Variable varname2 vartype2)
+    | vartype1 == vartype2 = Add x y (Var out) -- string hasn't been handled
+    | otherwise = error "`vartype`s should be equal"
+  where
+    x = Variable varname1 vartype1
+    y = Variable varname2 vartype2
+    out = Variable "out" vartype1
+
+concatenate :: [Variable] -> Int -> LaxPrimitive
+concatenate [] _ = error "`concatenate` cannot operate on an empty list"
+concatenate (v : vs) axis = Concatenate vars [Parameter "dimension" (show axis)] (Var out)
+  where
+    vars = v : vs
+    Variable _ vartype = v
+    out = Variable "out" vartype -- WRONG VARTYPE!
