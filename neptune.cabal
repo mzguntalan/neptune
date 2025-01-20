@@ -70,6 +70,7 @@ library
                       Jaxpr.Lax
                       Jaxpr.Equation
                       Jaxpr.Grammar
+                      Jaxpr.Clax
 
     -- LANGUAGE extensions used by modules in this package.
     other-extensions: DataKinds
