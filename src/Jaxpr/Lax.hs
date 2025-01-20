@@ -1,3 +1,8 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE StandaloneDeriving #-}
+
 module Jaxpr.Lax where
 
 import Jaxpr.Interpreter
@@ -7,18 +12,17 @@ import Jaxpr.Interpreter
 --
 --
 
-labs :: Variable -> JaxExpr
-labs (Variable varname vartype) = JaxExpr [] [x] [eq] [Var out]
+applyLax :: LaxPrimitive -> [Parameter] -> [Variable] -> JaxExpr
+applyLax Abs [] [var] = applyAsUnary Abs [] var
+applyLax Abs [] vars = error ("Abs received the wrong number " ++ show (length vars) ++ " of params should be 1")
+applyLax Abs params [] = error ("Abs received the wrong number " ++ show (length params) ++ " of params should be 0")
+applyLax _ _ _ = error "Not Implemented"
+
+applyAsUnary :: LaxPrimitive -> [Parameter] -> Variable -> JaxExpr
+applyAsUnary unary params var = JaxExpr [] [var] [eq] [Var out]
   where
     out = Variable "out" vartype
-    x = Variable varname vartype
-    eq = Equation [out] Abs [] [Var x]
+    (Variable _ vartype) = var
+    eq = Equation [out] unary params [Var var]
 
-class (Primitive a) => UnaryPrimitiveNoParameter a
-
-applyUnary :: (UnaryPrimitiveNoParameter a) => a -> Variable -> JaxExpr
-applyUnary prim (Variable varname vartype) = JaxExpr [] [x] [eq] [Var out]
-  where
-    out = Variable "out" vartype
-    x = Variable varname vartype
-    eq = Equation [out] (toLaxPrimitive prim) [] [Var x]
+-- applyLax _ _ _ = error "Not Implemented"
