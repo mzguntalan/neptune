@@ -28,13 +28,13 @@ data Parameter = Parameter ParamName ParamValue
 instance Show Parameter where
     show (Parameter name val) = name ++ "=" ++ val
 
-type Literal = String
+type Literal = Variable
 
 data Expression = Var Variable | Lit Literal
 
 instance Show Expression where
     show (Var (Variable varname _)) = varname
-    show (Lit lit) = lit
+    show (Lit lit) = show lit
 
 -- if something is an array then it is a Variable
 -- if something is a python primitive then it is a parameter
