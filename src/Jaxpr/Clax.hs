@@ -9,17 +9,37 @@ import Data.List (intercalate)
 
 -- focusing on Tracing
 
-data NonArray = Cint | Cfloat | Cstring
+data NoneArrayType = Cint | Cstring
+
+data NonArray = NonArray NoneArrayType String
 
 data ArrayType = Af32 | Ai32
 
-data Array a = Array [a] ArrayType
+data Array a = Array [a] ArrayType String
 
-class Value a
+data ArrayTemplate a = ArrayTemplate [a] ArrayType
 
-instance Value Array
+data NoneArrayTemplate = NoneArrayTemplate NoneArrayType
 
-instance Value NonArray
+class Value a where
+    valueName :: a -> String
+
+class ValueTemplate a where
+    toValue :: (Value b) => a -> String -> b
+
+instance Value (Array a) where
+    valueName (Array _ _ n) = n
+
+instance Value NonArray where
+    valueName (NonArray _ n) = n
+
+instance ValueTemplate (ArrayTemplate a) where
+    -- toValue :: ArrayTemplate a -> String -> Array a
+    toValue (ArrayTemplate v t) = Array v t
+
+instance ValueTemplate NoneArrayTemplate where
+    toValue :: NoneArrayTemplate -> String -> NonArray
+    toValue (NoneArrayTemplate t) = NonArray t
 
 data PrimitiveSymbol = Abs | Add | Concatenate | Id
 
@@ -40,6 +60,18 @@ instance Show Parameter where
 
 data Primitive = Primitive PrimitiveSymbol [Parameter]
 
+numInputOfPrimitiveSymbol :: PrimitiveSymbol -> Int
+numInputOfPrimitiveSymbol Abs = 1
+numInputOfPrimitiveSymbol Add = 2
+numInputOfPrimitiveSymbol Concatenate = 1
+numInputOfPrimitiveSymbol Id = 1
+
+numOutputOfPrimitiveSymbol :: PrimitiveSymbol -> Int
+numOutputOfPrimitiveSymbol Abs = 1
+numOutputOfPrimitiveSymbol Add = 2
+numOutputOfPrimitiveSymbol Concatenate = 1
+numOutputOfPrimitiveSymbol Id = 1
+
 instance Show Primitive where
     show (Primitive sym []) = show sym
     show (Primitive sym params) = show sym ++ "[" ++ intercalate "," (map show params) ++ "]"
@@ -49,17 +81,41 @@ type Input a = a
 type Output a = a
 
 data Equation where
-    Equation :: (Value a) => Primitive -> [Input a] -> [Output a] -> Equation
+    Equation :: (Value a, Value b) => Primitive -> [Input a] -> [Output b] -> Equation
+
+-- createNArrayTemplates :: Int -> [Array a]
+
+createNArrays :: Int -> String -> [Array a]
+createNArrays n seedName = zipWith (curry toValue) (createNArrayTemplates n) (createNnames n seedName)
+
+createNArrayTemplates :: Int -> [ArrayTemplate a]
+createNArrayTemplates n = map (\_ -> ArrayTemplate [] Af32) [1, 2 .. n]
+
+createNnames :: Int -> String -> [String]
+createNnames n seedName = map f [1, 2 .. n]
+  where
+    f :: Int -> String
+    f i = seedName ++ "." ++ show i
+
+applyPrimitive :: (Value a, Value b) => Primitive -> [a] -> Equation
+applyPrimitive prim inputs
+    | length inputs == numInputOfPrimitiveSymbol sym = Equation prim inputs outputs
+    | otherwise = error "Shouldn't happen"
+  where
+    (Primitive sym _) = prim
+    outputs = createNArrayValues (numOutputOfPrimitiveSymbol sym) s
+    s = head inputs
 
 type CurrentValues a = a
 
 data Trace where
     Trace :: (Value a) => [a] -> [Equation] -> Trace
 
-variadic :: [Trace] -> Trace
-variadic ts = Trace outs (eq : eqs)
+variadic :: Primitive -> [Trace] -> Trace
+variadic prim ts = Trace outs (eq : eqs)
   where
     eqs :: [Equation]
     eqs = concatMap extractEqs ts
     extractEqs :: Trace -> [Equation]
     extractEqs (Trace _ es) = es
+    outs = applyPrimitive prim
