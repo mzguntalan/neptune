@@ -19,6 +19,8 @@ type Axis = Int -- in future might be literal
 
 type AxisSize = Int -- in future might be literal
 
+type Shape = [AxisSize]
+
 data LaxTensor = LaxTensor TensorType [AxisSize] String
 
 instance Show LaxTensor where
@@ -51,6 +53,27 @@ tensorName (LaxTensor _ _ n) = n
 renameTensor :: LaxTensor -> String -> LaxTensor
 renameTensor (LaxTensor t s _) = LaxTensor t s
 
+shapeSingleConcat :: Shape -> Shape -> Axis -> Shape
+shapeSingleConcat (a : as) (b : bs) axis = f (a : as) (b : bs) axis 0
+  where
+    f :: Shape -> Shape -> Axis -> Axis -> Shape
+    f (c : cs) (d : ds) target cur
+        | target == cur =
+            if cs == ds
+                then c + d : cs
+                else error "shape mismatch"
+        | target > cur =
+            if c == d
+                then c : f cs ds target (cur + 1)
+                else error "shape mismatch"
+        | otherwise = error "Not enough axes"
+    f _ _ _ _ = error "Should not happen"
+shapeSingleConcat _ _ _ = error "Shape should be non empty list"
+
+shapeConcat :: [Shape] -> Axis -> Shape
+shapeConcat (shap : shapes) axis = foldl (\x y -> shapeSingleConcat x y axis) shap shapes
+shapeConcat [] _ = error "no shapes to concat"
+
 data Parameter = Parameter String String
 
 instance Show Parameter where
@@ -59,7 +82,7 @@ instance Show Parameter where
 paramList :: [Parameter] -> String
 paramList ps = "[" ++ intercalate "," (map show ps) ++ "]"
 
-data LaxPrimitive = Abs | Add | Concatenate {concatenateDimensions :: Int} | Var
+data LaxPrimitive = Abs | Add | Concatenate {concatenateDimension :: Int} | Var
 
 instance Show LaxPrimitive where
     show = primRepresentation
@@ -79,7 +102,7 @@ primNumOutput Var = 1
 primRepresentation :: LaxPrimitive -> String
 primRepresentation Abs = "abs"
 primRepresentation Add = "add"
-primRepresentation (Concatenate{concatenateDimensions = d}) = "concatenate" ++ paramList [Parameter "dimension" (show d)]
+primRepresentation (Concatenate{concatenateDimension = d}) = "concatenate" ++ paramList [Parameter "dimension" (show d)]
 primRepresentation Var = "var"
 
 allEq :: (Eq a) => [a] -> Bool
@@ -92,7 +115,7 @@ primSimulateApply :: LaxPrimitive -> [LaxTensor] -> [LaxTensor]
 primSimulateApply Add [a, b]
     | sameShape a b && sameType a b = [LaxTensor (tensorType a) (shape a) ""]
 primSimulateApply Abs [a] = [a]
-primSimulateApply Concatenate{concatenateDimensions = d} (t : otherTensors)
+primSimulateApply Concatenate{concatenateDimension = d} (t : otherTensors)
     | allEq ranks && allEq targetAxes && allEq types = [LaxTensor commonType resultShape ""]
   where
     ts = t : otherTensors
@@ -100,7 +123,7 @@ primSimulateApply Concatenate{concatenateDimensions = d} (t : otherTensors)
     targetAxes = map (`shapeAtAxis` d) ts
     types = map tensorType ts
     LaxTensor commonType _ _ = t
-    resultShape = shape t -- TODO: this is wrong, right a shape math lib maybe
+    resultShape = shapeConcat (map shape ts) d -- TODO: this is wrong, right a shape math lib maybe
 primSimulateApply Var [t] = [t]
 primSimulateApply _ _ = error "Either not implemented; or you made a mistake or I made a mistake"
 
@@ -194,5 +217,15 @@ ladd trX trY = Trace (newEquation : equations) newTraceName
     outTensors = map (`renameTensor` (newTraceName ++ "." ++ show (length equations + 1))) (primSimulateApply Add [x, y])
     [x] = currentTraceOutputs trX
     [y] = currentTraceOutputs trY
+
+lconcatenate :: [Trace] -> Axis -> Trace
+lconcatenate traces axis = Trace (newEquation : equations) newTraceName
+  where
+    newTraceName = intercalate "" (map traceName traces)
+    equations = traceJoinEquations traces
+    newEquation = Equation prim inputs outTensors
+    inputs = map (head . currentTraceOutputs) traces
+    prim = Concatenate{concatenateDimension = axis}
+    outTensors = map (`renameTensor` (newTraceName ++ "." ++ show (length equations + 1))) (primSimulateApply prim inputs)
 
 -- trace should reflect the input of the last primitive applied OR last function applied
