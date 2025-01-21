@@ -5,29 +5,61 @@
 
 module Jaxpr.Clax where
 
+import Data.List (intercalate)
+
 -- focusing on Tracing
 
-type VarName = String
-type FuncName = String
+data NonArray = Cint | Cfloat | Cstring
 
-data Vartype = Vi | Vf deriving (Show)
-data Variable = Variable VarName Vartype deriving (Show)
-type Output = Variable
-type Input = Variable
-data Function = Function FuncName deriving (Show)
-data Equation = Equation [Output] Function [Input] deriving (Show)
+data ArrayType = Af32 | Ai32
 
-type CurrentValue = Variable
-data Tracer = Tracer CurrentValue [Equation] deriving (Show)
+data Array a = Array [a] ArrayType
 
-var :: Variable -> Tracer
-var x = Tracer x []
+class Value a
 
-id :: Tracer -> Tracer
-id (Tracer curval eqs) = Tracer curval (Equation [curval] (Function "id") [curval] : eqs)
+instance Value Array
 
-add :: Tracer -> Tracer -> Tracer
-add (Tracer x xEqs) (Tracer y yEqs) = Tracer z (Equation [z] (Function "add") [x, y] : eqs)
+instance Value NonArray
+
+data PrimitiveSymbol = Abs | Add | Concatenate | Id
+
+instance Show PrimitiveSymbol where
+    show Abs = "abs"
+    show Add = "add"
+    show Concatenate = "concatenate"
+    show Id = "unchecked:id"
+
+type ParamName = String
+
+type ParamValue = String
+
+data Parameter = Parameter ParamName ParamValue
+
+instance Show Parameter where
+    show (Parameter name val) = name ++ "=" ++ val
+
+data Primitive = Primitive PrimitiveSymbol [Parameter]
+
+instance Show Primitive where
+    show (Primitive sym []) = show sym
+    show (Primitive sym params) = show sym ++ "[" ++ intercalate "," (map show params) ++ "]"
+
+type Input a = a
+
+type Output a = a
+
+data Equation where
+    Equation :: (Value a) => Primitive -> [Input a] -> [Output a] -> Equation
+
+type CurrentValues a = a
+
+data Trace where
+    Trace :: (Value a) => [a] -> [Equation] -> Trace
+
+variadic :: [Trace] -> Trace
+variadic ts = Trace outs (eq : eqs)
   where
-    eqs = xEqs ++ yEqs
-    z = Variable "out" Vf
+    eqs :: [Equation]
+    eqs = concatMap extractEqs ts
+    extractEqs :: Trace -> [Equation]
+    extractEqs (Trace _ es) = es
