@@ -53,6 +53,12 @@ tensorName (LaxTensor _ _ n) = n
 renameTensor :: LaxTensor -> String -> LaxTensor
 renameTensor (LaxTensor t s _) = LaxTensor t s
 
+renameTensorsWithSeedName :: [LaxTensor] -> String -> [LaxTensor]
+renameTensorsWithSeedName ts seedName = renamedTensors
+  where
+    newNames = map (((seedName ++ ".") ++) . show) [1, 2 .. (length ts)]
+    renamedTensors = zipWith renameTensor ts newNames
+
 shapeSingleConcat :: Shape -> Shape -> Axis -> Shape
 shapeSingleConcat (a : as) (b : bs) axis = f (a : as) (b : bs) axis 0
   where
@@ -166,7 +172,6 @@ eqRenameWithSeed (Equation prim inputs outputs) seedName = Equation prim renamed
     renamedInputs = zipWith renameTensor inputs inputNames
     renamedOutputs :: [LaxTensor]
     renamedOutputs = zipWith renameTensor outputs outputNames
-
 data Trace = Trace [Equation] String
 
 instance Show Trace where
@@ -183,7 +188,7 @@ traceEquations :: Trace -> [Equation]
 traceEquations (Trace eqs _) = eqs
 
 traceJoinEquations :: [Trace] -> [Equation]
-traceJoinEquations = concatMap traceEquations
+traceJoinEquations = (concatMap traceEquations) . reverse
 
 var :: LaxTensor -> Trace
 var t = Trace eqs (tensorName t)
@@ -191,6 +196,9 @@ var t = Trace eqs (tensorName t)
     eq = Equation Var [t] (primSimulateApply Var [t])
     renamedEq = eqRenameWithSeed eq (tensorName t ++ ".1")
     eqs = [renamedEq]
+unvar :: Trace -> LaxTensor
+unvar (Trace [Equation Var [_] [t]] n) = renameTensor t n
+unvar _ = error "You can only unvar a var"
 
 mkTrace :: [Equation] -> String -> Trace
 mkTrace eqs s = Trace renamedEqs s
@@ -229,3 +237,12 @@ lconcatenate traces axis = Trace (newEquation : equations) newTraceName
     outTensors = map (`renameTensor` (newTraceName ++ "." ++ show (length equations + 1))) (primSimulateApply prim inputs)
 
 -- trace should reflect the input of the last primitive applied OR last function applied
+--
+--
+
+-- test function
+testFunction :: Trace -> Trace -> Trace -> Trace -> Trace
+testFunction a b c d = lconcatenate [v1, v2] 0
+  where
+    v1 = ladd a b
+    v2 = labs c `ladd` labs d
