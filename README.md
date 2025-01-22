@@ -6,6 +6,8 @@ The neptune library probably won't be look like numpy, but it might. Neptune wou
 
 ## Demo
 
+[Because of heavy early development, the demo would probably be outdated very quickly]
+
 Currently, neptune can arbitarily compose (designated) functions that mirror lax module functions in jax. These function output a `Trace` that are compilable to `jaxpr`.
 
 Here are examples
