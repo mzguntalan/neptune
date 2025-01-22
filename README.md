@@ -1,6 +1,8 @@
 # neptune
 
-JAX interop-able library for numeric and machine learning computations in Haskell.
+JAX interop-able library for numeric and machine learning computations in Haskell. Neptune is Haskell library for machine learning and numerical computing that aims to be inter-operable with models done by the larger research and engineering community. To do this, Neptune would interop with at least one library/framework for numeric computing used by many (Currently targeting JAX). With this, Neptune will be save and load models from JAX. Neptune is a **work in progress** and is in very early development and can't be used for anything substantial as of now.
+
+The neptune library probably won't be look like numpy, but it might. Neptune would hopefully make numeric computing in Haskell feel like Haskell.
 
 ## Demo
 
