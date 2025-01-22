@@ -5,7 +5,8 @@
 
 module Jaxpr.Clax where
 
-import Data.List (intercalate)
+import Data.List (findIndex, intercalate, nub)
+import Data.Map.Strict qualified as Map
 
 -- focusing on Tracing
 
@@ -154,9 +155,9 @@ type EqPrimitive = LaxPrimitive
 data Equation = Equation EqPrimitive [EqInput] [EqOutput]
 
 instance Show Equation where
-    show (Equation prim inputs outputs) = showOutputs ++ "=" ++ show prim ++ " " ++ showInputs
+    show (Equation prim inputs outputs) = showOutputs ++ " = " ++ show prim ++ " " ++ showInputs
       where
-        showInputs = unwords (map show inputs)
+        showInputs = unwords (map tensorName inputs)
         showOutputs = unwords (map show outputs)
 
 equation :: EqPrimitive -> [LaxTensor] -> [LaxTensor] -> Equation
@@ -201,7 +202,7 @@ traceEquations :: Trace -> [Equation]
 traceEquations (Trace eqs _) = eqs
 
 traceJoinEquations :: [Trace] -> [Equation]
-traceJoinEquations = (concatMap traceEquations) . reverse
+traceJoinEquations = concatMap traceEquations . reverse
 
 var :: LaxTensor -> Trace
 var t = Trace eqs (tensorName t)
@@ -289,12 +290,69 @@ compileTrace tr = JaxExpression consts inVars eqs outVars
 
     outVars = currentTraceOutputs tr
 
+compilePrettyTrace :: Trace -> JaxExpression
+compilePrettyTrace tr = compileTrace (prettifyTrace tr)
+
+symbolOrder = "abcdefghijklmnopqrstuvwxyz"
+
+newVarName :: String -> String
+newVarName [char]
+    | char == 'z' = "aa"
+    | otherwise = [symbolOrder !! iNext]
+  where
+    i = case findIndex (== char) symbolOrder of
+        Just a -> a
+        Nothing -> error "You're doing things wrong. Recheck the naming pipeline"
+    iNext = i + 1
+newVarName (x : xs) = newVarName [x] ++ xs
+newVarName [] = "a"
+
+-- this needs fixing
+varNameFromInt :: Int -> String
+varNameFromInt x
+    | 0 <= x && x < length symbolOrder = [symbolOrder !! x]
+    | x >= length symbolOrder = "a" ++ varNameFromInt (x - length symbolOrder)
+
+-- newVarName
+
+eqNumVars :: Equation -> Int
+eqNumVars eq = primNumInput prim + primNumOutput prim where prim = eqPrimitive eq
+
+eqAllVars :: Equation -> [LaxTensor]
+eqAllVars eq = eqInputs eq ++ eqOutputs eq
+
+renameEquationUsingMap :: Equation -> Map.Map String String -> Equation
+renameEquationUsingMap (Equation prim inputs outputs) varmap = Equation prim renamedInputs renamedOutputs
+  where
+    f :: LaxTensor -> LaxTensor
+    f t = renameTensor t newName
+      where
+        newName = case Map.lookup (tensorName t) varmap of
+            Just a -> a
+            Nothing -> error "You made a mistake with generating the correspondences of oldnames to new names"
+
+    renamedInputs = map f inputs
+    renamedOutputs = map f outputs
+
+prettifyTrace :: Trace -> Trace
+prettifyTrace tr = Trace newEquations (traceName tr)
+  where
+    newEquations = map (`renameEquationUsingMap` lookupOfVarNames) eqs
+    eqs = traceEquations tr
+    allVarsInAllEquations = concatMap eqAllVars eqs
+    allCurrentVarNames :: [String]
+    allCurrentVarNames = nub (map tensorName allVarsInAllEquations)
+    upperBoundNumVars = sum (map eqNumVars eqs)
+    varnamePool = map varNameFromInt [0, 1 .. (upperBoundNumVars - 1)]
+    lookupOfVarNames :: Map.Map String String
+    lookupOfVarNames = Map.fromList (zip allCurrentVarNames varnamePool)
+
 instance Show JaxExpression where
-    show (JaxExpression consts inVars eqs outs) = "{ lambda " ++ constShow ++ " ; " ++ inVarsShow ++ ". let\n" ++ equationsShow ++ "\n in " ++ outVarsShow ++ " }"
+    show (JaxExpression consts inVars eqs outs) = "{ lambda " ++ constShow ++ " ; " ++ inVarsShow ++ ". let\n\t" ++ equationsShow ++ "\n in " ++ outVarsShow ++ " }"
       where
         constShow = unwords (map show consts)
         inVarsShow = unwords (map show inVars)
-        equationsShow = intercalate "\n" (map show eqs)
+        equationsShow = intercalate "\n\t" (map show eqs)
         outVarsShow = "(" ++ intercalate "," (map tensorName outs) ++ ",)"
 
 -- test function
