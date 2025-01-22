@@ -104,6 +104,7 @@ data BlxPrimitive = Abs | Add | Concatenate {concatenateDimension :: Int} | Var 
 instance Show BlxPrimitive where
     show = primRepresentation
 
+-- not sure if this is scalable ... but it works for now
 primNumInput :: BlxPrimitive -> Int
 primNumInput Abs = 1
 primNumInput Add = 2
@@ -396,5 +397,11 @@ testFunction a b c d = lconcatenate [v1, v2] 0
 testFunction2 :: BlxTrace -> BlxTrace -> BlxTrace -> BlxTrace -> BlxTrace
 testFunction2 a b c d = ladd s z
   where
-    z = lit (tensor Tf32 [2, 2] "z" Tlit) -- how do i scope this to only testFunction2 automatically
+    z = lit Tf32 [2, 2] "z" -- how do i scope this to only testFunction2 automatically
     s = ladd a b `ladd` ladd c d
+
+testFunction3 :: BlxTrace -> BlxTrace -> BlxTrace -> BlxTrace -> BlxTrace
+testFunction3 a b c d = ladd s z
+  where
+    z = lit Tf32 [2, 2] "z" -- how do i scope this to only testFunction3 vs 2 automatically
+    s = ladd a b `ladd` ladd c (testFunction2 a b c d)
