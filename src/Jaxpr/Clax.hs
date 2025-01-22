@@ -293,14 +293,15 @@ compileTrace tr = JaxExpression consts inVars eqs outVars
 compilePrettyTrace :: Trace -> JaxExpression
 compilePrettyTrace = prettifyJaxpr . compileTrace
 
-symbolOrder = "abcdefghijklmnopqrstuvwxyz"
+symbolsForNaming :: String
+symbolsForNaming = "abcdefghijklmnopqrstuvwxyz"
 
 newVarName :: String -> String
 newVarName [char]
     | char == 'z' = "aa"
-    | otherwise = [symbolOrder !! iNext]
+    | otherwise = [symbolsForNaming !! iNext]
   where
-    i = case findIndex (== char) symbolOrder of
+    i = case findIndex (== char) symbolsForNaming of
         Just a -> a
         Nothing -> error "You're doing things wrong. Recheck the naming pipeline"
     iNext = i + 1
@@ -310,8 +311,9 @@ newVarName [] = "a"
 -- this needs fixing
 varNameFromInt :: Int -> String
 varNameFromInt x
-    | 0 <= x && x < length symbolOrder = [symbolOrder !! x]
-    | x >= length symbolOrder = "a" ++ varNameFromInt (x - length symbolOrder)
+    | 0 <= x && x < length symbolsForNaming = [symbolsForNaming !! x]
+    | x >= length symbolsForNaming = "a" ++ varNameFromInt (x - length symbolsForNaming)
+    | otherwise = error "Shouldn't happen"
 
 -- newVarName
 
