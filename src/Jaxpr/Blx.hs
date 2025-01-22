@@ -26,22 +26,22 @@ type Shape = [AxisSize]
 
 data Designation = Tvar | Tlit
 
-data BlxTensor = LaxTensor TensorType [AxisSize] String Designation
+data BlxTensor = BlxTensor TensorType [AxisSize] String Designation
 
 instance Show BlxTensor where
-    show (LaxTensor t s n _) = n ++ ":" ++ show t ++ show s
+    show (BlxTensor t s n _) = n ++ ":" ++ show t ++ show s
 
 tensor :: TensorType -> [Int] -> String -> Designation -> BlxTensor
-tensor = LaxTensor
+tensor = BlxTensor
 
 tensorRank :: BlxTensor -> Int
 tensorRank = length . tensorShape
 
 tensorShape :: BlxTensor -> [AxisSize]
-tensorShape (LaxTensor _ s _ _) = s
+tensorShape (BlxTensor _ s _ _) = s
 
 tensorType :: BlxTensor -> TensorType
-tensorType (LaxTensor t _ _ _) = t
+tensorType (BlxTensor t _ _ _) = t
 
 sameType :: BlxTensor -> BlxTensor -> Bool
 sameType t1 t2 = tensorType t1 == tensorType t2
@@ -53,10 +53,10 @@ shapeAtAxis :: BlxTensor -> Axis -> AxisSize
 shapeAtAxis t n = tensorShape t !! n
 
 tensorName :: BlxTensor -> String -- identifier
-tensorName (LaxTensor _ _ n _) = n
+tensorName (BlxTensor _ _ n _) = n
 
 renameTensor :: BlxTensor -> String -> BlxTensor
-renameTensor (LaxTensor t s _ z) newName = LaxTensor t s newName z
+renameTensor (BlxTensor t s _ z) newName = BlxTensor t s newName z
 
 tensorCopy :: BlxTensor -> BlxTensor
 tensorCopy t = renameTensor t (tensorName t ++ ".copy")
@@ -68,7 +68,7 @@ renameTensorsWithSeedName ts seedName = renamedTensors
     renamedTensors = zipWith renameTensor ts newNames
 
 tensorDesignation :: BlxTensor -> Designation
-tensorDesignation (LaxTensor _ _ _ vt) = vt
+tensorDesignation (BlxTensor _ _ _ vt) = vt
 
 shapeSingleConcat :: Shape -> Shape -> Axis -> Shape
 shapeSingleConcat (a : as) (b : bs) axis = f (a : as) (b : bs) axis 0
@@ -133,16 +133,16 @@ allEq (a1 : (a2 : others)) = a1 == a2 && allEq others
 
 primApply :: BlxPrimitive -> [BlxTensor] -> [BlxTensor]
 primApply Add [a, b]
-    | sameShape a b && sameType a b = [LaxTensor (tensorType a) (tensorShape a) "" Tvar] -- might be Tlit or Tvar IDK yet
+    | sameShape a b && sameType a b = [BlxTensor (tensorType a) (tensorShape a) "" Tvar] -- might be Tlit or Tvar IDK yet
 primApply Abs [a] = [a]
 primApply Concatenate{concatenateDimension = d} (t : otherTensors)
-    | allEq ranks && allEq targetAxes && allEq types = [LaxTensor commonType resultShape "" Tvar]
+    | allEq ranks && allEq targetAxes && allEq types = [BlxTensor commonType resultShape "" Tvar]
   where
     ts = t : otherTensors
     ranks = map tensorRank ts
     targetAxes = map (`shapeAtAxis` d) ts
     types = map tensorType ts
-    LaxTensor commonType _ _ _ = t
+    BlxTensor commonType _ _ _ = t
     resultShape = shapeConcat (map tensorShape ts) d -- TODO: this is wrong, right a shape math lib maybe
 primApply Var [t] = [t]
 primApply Lit [t] = [t]
@@ -206,23 +206,29 @@ traceEquations (Trace eqs _) = eqs
 traceJoinEquations :: [BlxTrace] -> [BlxEquation]
 traceJoinEquations = concatMap traceEquations . reverse
 
-var :: BlxTensor -> BlxTrace
-var t = Trace eqs (tensorName t)
+var :: TensorType -> [Int] -> String -> BlxTrace
+var ttype tshape tname = Trace eqs (tensorName t)
   where
+    t = BlxTensor ttype tshape tname Tvar
     eq = BlxEquation Var [t] (primApply Var [t])
     renamedEq = eqRenameWithSeed eq (tensorName t ++ ".1")
     eqs = [renamedEq]
 
 unvar :: BlxTrace -> BlxTensor
-unvar (Trace [BlxEquation Var [_] [t]] n) = renameTensor t n
+unvar (Trace [BlxEquation Var [_] [BlxTensor tt ts tn Tvar]] n) = renameTensor t n where t = BlxTensor tt ts tn Tvar
 unvar _ = error "You can only unvar a var"
 
-lit :: BlxTensor -> BlxTrace
-lit t = Trace eqs (tensorName t)
+lit :: TensorType -> [Int] -> String -> BlxTrace
+lit ttype tshape tname = Trace eqs (tensorName t)
   where
-    eq = BlxEquation Lit [t] (primApply Var [t])
+    t = BlxTensor ttype tshape tname Tlit
+    eq = BlxEquation Lit [t] (primApply Lit [t])
     renamedEq = eqRenameWithSeed eq (tensorName t ++ ".1")
     eqs = [renamedEq]
+
+unlit :: BlxTrace -> BlxTensor
+unlit (Trace [BlxEquation Lit [_] [BlxTensor tt ts tn Tlit]] n) = renameTensor t n where t = BlxTensor tt ts tn Tlit
+unlit _ = error "You can only unlit a lit"
 
 mkTrace :: [BlxEquation] -> String -> BlxTrace
 mkTrace eqs s = Trace renamedEqs s
