@@ -3,11 +3,13 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Jaxpr.Clax where
+module Jaxpr.Blx where
 
 import Data.List (findIndex, intercalate, nub)
 import Data.Map.Strict qualified as Map
 
+-- Blx Before Jax, Above Lax
+-- This is a slightly modified mirror of Lax from Jax to Accomodate the Trace Approach
 -- focusing on Tracing
 
 data TensorType = Tf32 | Tf16 deriving (Eq)
@@ -24,48 +26,48 @@ type Shape = [AxisSize]
 
 data VarType = Tvar | Tlit
 
-data LaxTensor = LaxTensor TensorType [AxisSize] String VarType
+data BlxTensor = LaxTensor TensorType [AxisSize] String VarType
 
-instance Show LaxTensor where
+instance Show BlxTensor where
     show (LaxTensor t s n _) = n ++ ":" ++ show t ++ show s
 
-tensor :: TensorType -> [Int] -> String -> VarType -> LaxTensor
+tensor :: TensorType -> [Int] -> String -> VarType -> BlxTensor
 tensor = LaxTensor
 
-rank :: LaxTensor -> Int
+rank :: BlxTensor -> Int
 rank = length . shape
 
-shape :: LaxTensor -> [AxisSize]
+shape :: BlxTensor -> [AxisSize]
 shape (LaxTensor _ s _ _) = s
 
-tensorType :: LaxTensor -> TensorType
+tensorType :: BlxTensor -> TensorType
 tensorType (LaxTensor t _ _ _) = t
 
-sameType :: LaxTensor -> LaxTensor -> Bool
+sameType :: BlxTensor -> BlxTensor -> Bool
 sameType t1 t2 = tensorType t1 == tensorType t2
 
-sameShape :: LaxTensor -> LaxTensor -> Bool
+sameShape :: BlxTensor -> BlxTensor -> Bool
 sameShape t1 t2 = shape t1 == shape t2
 
-shapeAtAxis :: LaxTensor -> Axis -> AxisSize
+shapeAtAxis :: BlxTensor -> Axis -> AxisSize
 shapeAtAxis t n = shape t !! n
 
-tensorName :: LaxTensor -> String -- identifier
+tensorName :: BlxTensor -> String -- identifier
 tensorName (LaxTensor _ _ n _) = n
 
-renameTensor :: LaxTensor -> String -> LaxTensor
+renameTensor :: BlxTensor -> String -> BlxTensor
 renameTensor (LaxTensor t s _ z) newName = LaxTensor t s newName z
 
-tensorCopy :: LaxTensor -> LaxTensor
+tensorCopy :: BlxTensor -> BlxTensor
 tensorCopy t = renameTensor t (tensorName t ++ ".copy")
 
-renameTensorsWithSeedName :: [LaxTensor] -> String -> [LaxTensor]
+renameTensorsWithSeedName :: [BlxTensor] -> String -> [BlxTensor]
 renameTensorsWithSeedName ts seedName = renamedTensors
   where
     newNames = map (((seedName ++ ".") ++) . show) [1, 2 .. (length ts)]
     renamedTensors = zipWith renameTensor ts newNames
 
-tensorVarType :: LaxTensor -> VarType
+tensorVarType :: BlxTensor -> VarType
 tensorVarType (LaxTensor _ _ _ vt) = vt
 
 shapeSingleConcat :: Shape -> Shape -> Axis -> Shape
@@ -129,7 +131,7 @@ allEq [_] = True
 allEq [a, b] = a == b
 allEq (a1 : (a2 : others)) = a1 == a2 && allEq others
 
-primSimulateApply :: LaxPrimitive -> [LaxTensor] -> [LaxTensor]
+primSimulateApply :: LaxPrimitive -> [BlxTensor] -> [BlxTensor]
 primSimulateApply Add [a, b]
     | sameShape a b && sameType a b = [LaxTensor (tensorType a) (shape a) "" Tvar] -- might be Tlit or Tvar IDK yet
 primSimulateApply Abs [a] = [a]
@@ -146,9 +148,9 @@ primSimulateApply Var [t] = [t]
 primSimulateApply Lit [t] = [t]
 primSimulateApply _ _ = error "Either not implemented; or you made a mistake or I made a mistake"
 
-type EqInput = LaxTensor
+type EqInput = BlxTensor
 
-type EqOutput = LaxTensor
+type EqOutput = BlxTensor
 
 type EqPrimitive = LaxPrimitive
 
@@ -160,16 +162,16 @@ instance Show Equation where
         showInputs = unwords (map tensorName inputs)
         showOutputs = unwords (map show outputs)
 
-equation :: EqPrimitive -> [LaxTensor] -> [LaxTensor] -> Equation
+equation :: EqPrimitive -> [BlxTensor] -> [BlxTensor] -> Equation
 equation = Equation
 
 eqPrimitive :: Equation -> LaxPrimitive
 eqPrimitive (Equation prim _ _) = prim
 
-eqInputs :: Equation -> [LaxTensor]
+eqInputs :: Equation -> [BlxTensor]
 eqInputs (Equation _ inputs _) = inputs
 
-eqOutputs :: Equation -> [LaxTensor]
+eqOutputs :: Equation -> [BlxTensor]
 eqOutputs (Equation _ _ outputs) = outputs
 
 eqRenameWithSeed :: Equation -> String -> Equation
@@ -181,9 +183,9 @@ eqRenameWithSeed (Equation prim inputs outputs) seedName = Equation prim renamed
     inputNames = map ((inputSeedName ++) . show) [1, 2 .. (length inputs)]
     outputNames = map ((outputSeedName ++) . show) [1, 2 .. (length outputs)]
 
-    renamedInputs :: [LaxTensor]
+    renamedInputs :: [BlxTensor]
     renamedInputs = zipWith renameTensor inputs inputNames
-    renamedOutputs :: [LaxTensor]
+    renamedOutputs :: [BlxTensor]
     renamedOutputs = zipWith renameTensor outputs outputNames
 
 data Trace = Trace [Equation] String
@@ -194,7 +196,7 @@ instance Show Trace where
 traceName :: Trace -> String
 traceName (Trace _ n) = n
 
-currentTraceOutputs :: Trace -> [LaxTensor]
+currentTraceOutputs :: Trace -> [BlxTensor]
 currentTraceOutputs (Trace [] _) = []
 currentTraceOutputs (Trace (Equation _ _ outputs : _) _) = outputs
 
@@ -204,18 +206,18 @@ traceEquations (Trace eqs _) = eqs
 traceJoinEquations :: [Trace] -> [Equation]
 traceJoinEquations = concatMap traceEquations . reverse
 
-var :: LaxTensor -> Trace
+var :: BlxTensor -> Trace
 var t = Trace eqs (tensorName t)
   where
     eq = Equation Var [t] (primSimulateApply Var [t])
     renamedEq = eqRenameWithSeed eq (tensorName t ++ ".1")
     eqs = [renamedEq]
 
-unvar :: Trace -> LaxTensor
+unvar :: Trace -> BlxTensor
 unvar (Trace [Equation Var [_] [t]] n) = renameTensor t n
 unvar _ = error "You can only unvar a var"
 
-lit :: LaxTensor -> Trace
+lit :: BlxTensor -> Trace
 lit t = Trace eqs (tensorName t)
   where
     eq = Equation Lit [t] (primSimulateApply Var [t])
@@ -258,11 +260,11 @@ lconcatenate traces axis = Trace (newEquation : equations) newTraceName
     prim = Concatenate{concatenateDimension = axis}
     outTensors = map (`renameTensor` (newTraceName ++ "." ++ show (length equations + 1))) (primSimulateApply prim inputs)
 
-type JaxConst = LaxTensor
+type JaxConst = BlxTensor
 
-type JaxInputVariable = LaxTensor
+type JaxInputVariable = BlxTensor
 
-type JaxOutput = LaxTensor
+type JaxOutput = BlxTensor
 
 data JaxExpression = JaxExpression [JaxConst] [JaxInputVariable] [Equation] [JaxOutput]
 
@@ -320,13 +322,13 @@ varNameFromInt x
 eqNumVars :: Equation -> Int
 eqNumVars eq = primNumInput prim + primNumOutput prim where prim = eqPrimitive eq
 
-eqAllVars :: Equation -> [LaxTensor]
+eqAllVars :: Equation -> [BlxTensor]
 eqAllVars eq = eqInputs eq ++ eqOutputs eq
 
 renameEquationUsingMap :: Equation -> Map.Map String String -> Equation
 renameEquationUsingMap (Equation prim inputs outputs) varmap = Equation prim renamedInputs renamedOutputs
   where
-    f :: LaxTensor -> LaxTensor
+    f :: BlxTensor -> BlxTensor
     f t = renameTensor t newName
       where
         newName = case Map.lookup (tensorName t) varmap of
@@ -349,7 +351,7 @@ prettifyTrace tr = Trace newEquations (traceName tr)
     lookupOfVarNames :: Map.Map String String
     lookupOfVarNames = Map.fromList (zip allCurrentVarNames varnamePool)
 
-renameTensorUsingMap :: LaxTensor -> Map.Map String String -> LaxTensor
+renameTensorUsingMap :: BlxTensor -> Map.Map String String -> BlxTensor
 renameTensorUsingMap t m = case Map.lookup (tensorName t) m of
     Just newName -> renameTensor t newName
     Nothing -> error "Name not found in lookup"
@@ -357,7 +359,7 @@ renameTensorUsingMap t m = case Map.lookup (tensorName t) m of
 prettifyJaxpr :: JaxExpression -> JaxExpression
 prettifyJaxpr (JaxExpression consts inVars eqs outs) = JaxExpression renamedConsts renamedInVars renamedEqs renamedOuts
   where
-    allVars :: [LaxTensor]
+    allVars :: [BlxTensor]
     allVars = consts ++ inVars ++ concatMap eqAllVars eqs ++ outs
     allVarNames = nub $ map tensorName allVars
     varnamePool = map varNameFromInt [0, 1 .. (length allVars - 1)]
