@@ -276,8 +276,8 @@ isLitEquation :: BlxEquation -> Bool
 isLitEquation (BlxEquation Lit _ _) = True
 isLitEquation _ = False
 
-compileTrace :: BlxTrace -> JaxExpression
-compileTrace tr = JaxExpression consts inVars eqs outVars
+traceToJaxExpression :: BlxTrace -> JaxExpression
+traceToJaxExpression tr = JaxExpression consts inVars eqs outVars
   where
     allTraceEqs = reverse . traceEquations $ tr
     eqs = filter isJaxExpressionEquation allTraceEqs
@@ -292,8 +292,8 @@ compileTrace tr = JaxExpression consts inVars eqs outVars
 
     outVars = currentTraceOutputs tr
 
-compilePrettyTrace :: BlxTrace -> JaxExpression
-compilePrettyTrace = prettifyJaxpr . compileTrace
+compileTrace :: BlxTrace -> JaxExpression
+compileTrace = prettifyJaxpr . traceToJaxExpression
 
 symbolsForNaming :: String
 symbolsForNaming = "abcdefghijklmnopqrstuvwxyz"
