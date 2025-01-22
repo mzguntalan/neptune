@@ -71,7 +71,7 @@ Output:
 In haskell
 
 ```haskell
-f a b c d = ((a `ladd` b) `ladd` (c `ladd` d)) `ladd` (lit (tensor Tf32 [2,2] "z" Tlit))
+f2 a b c d = ((a `ladd` b) `ladd` (c `ladd` d)) `ladd` (lit (tensor Tf32 [2,2] "z" Tlit))
 -- a nicer api will come soon
 
 Output:
@@ -84,11 +84,43 @@ Output:
 
 ```
 
+### Example 3: concat([a+b, c+d], axis=1)
+
+In python
+
+```python
+def f3(a,b,c,d):
+    x = a + b
+    y = c + d
+    z = jnp.concatenate([x,y], axis=1)
+    return z
+
+Output:
+{ lambda ; a:f32[2,2] b:f32[2,2] c:f32[2,2] d:f32[2,2]. let
+    e:f32[2,2] = add a b
+    f:f32[2,2] = add c d
+    g:f32[2,4] = concatenate[dimension=1] e f
+  in (g,) }
+```
+
+In haskell,
+
+```haskell
+f3 a b c d = lconcatenate [x,y] 1 where x = a `ladd` b; y = c `ladd` d
+
+Output:
+{ lambda  ; a:f32[2,2] b:f32[2,2] c:f32[2,2] d:f32[2,2]. let
+        e:f32[2,2] = add a b
+        f:f32[2,2] = add c d
+        g:f32[2,4] = concatenate[dimension=1] e f
+ in (g,) }
+```
+
 ## Current Goals
 
 - [x] Produce jaxpr
 - [x] Map Some jaxpr primitives
-- [ ] Composing Primitives
+- [x] Composing Primitives
 - [ ] Develop Neptune representation
 - [ ] interop with the XLA compiler to run them
 - [ ] load and save JAX models in neptune Haskell
