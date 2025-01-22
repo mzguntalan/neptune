@@ -32,7 +32,6 @@ y = jnp.ones([2,2], dtype=jnp.float32)
 make_jaxpr(f)(x,y)
 
 Output:
-
 { lambda ; a:f32[2,2] b:f32[2,2]. let
     c:f32[2,2] = add a b
     d:f32[2,2] = abs c
@@ -60,7 +59,6 @@ def f2(a,b,c,d):
 
 # with f32[2,2] tensors x y
 Output:
-
 { lambda a:f32[2,2]; b:f32[2,2] c:f32[2,2] d:f32[2,2] e:f32[2,2]. let
     f:f32[2,2] = add b c
     g:f32[2,2] = add d e
