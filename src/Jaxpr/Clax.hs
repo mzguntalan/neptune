@@ -21,22 +21,24 @@ type AxisSize = Int -- in future might be literal
 
 type Shape = [AxisSize]
 
-data LaxTensor = LaxTensor TensorType [AxisSize] String
+data VarType = Tvar | Tlit
+
+data LaxTensor = LaxTensor TensorType [AxisSize] String VarType
 
 instance Show LaxTensor where
-    show (LaxTensor t s n) = n ++ ":" ++ show t ++ show s
+    show (LaxTensor t s n _) = n ++ ":" ++ show t ++ show s
 
-tensor :: TensorType -> [Int] -> String -> LaxTensor
+tensor :: TensorType -> [Int] -> String -> VarType -> LaxTensor
 tensor = LaxTensor
 
 rank :: LaxTensor -> Int
 rank = length . shape
 
 shape :: LaxTensor -> [AxisSize]
-shape (LaxTensor _ s _) = s
+shape (LaxTensor _ s _ _) = s
 
 tensorType :: LaxTensor -> TensorType
-tensorType (LaxTensor t _ _) = t
+tensorType (LaxTensor t _ _ _) = t
 
 sameType :: LaxTensor -> LaxTensor -> Bool
 sameType t1 t2 = tensorType t1 == tensorType t2
@@ -48,16 +50,22 @@ shapeAtAxis :: LaxTensor -> Axis -> AxisSize
 shapeAtAxis t n = shape t !! n
 
 tensorName :: LaxTensor -> String -- identifier
-tensorName (LaxTensor _ _ n) = n
+tensorName (LaxTensor _ _ n _) = n
 
 renameTensor :: LaxTensor -> String -> LaxTensor
-renameTensor (LaxTensor t s _) = LaxTensor t s
+renameTensor (LaxTensor t s _ z) newName = LaxTensor t s newName z
+
+tensorCopy :: LaxTensor -> LaxTensor
+tensorCopy t = renameTensor t (tensorName t ++ ".copy")
 
 renameTensorsWithSeedName :: [LaxTensor] -> String -> [LaxTensor]
 renameTensorsWithSeedName ts seedName = renamedTensors
   where
     newNames = map (((seedName ++ ".") ++) . show) [1, 2 .. (length ts)]
     renamedTensors = zipWith renameTensor ts newNames
+
+tensorVarType :: LaxTensor -> VarType
+tensorVarType (LaxTensor _ _ _ vt) = vt
 
 shapeSingleConcat :: Shape -> Shape -> Axis -> Shape
 shapeSingleConcat (a : as) (b : bs) axis = f (a : as) (b : bs) axis 0
@@ -88,7 +96,7 @@ instance Show Parameter where
 paramList :: [Parameter] -> String
 paramList ps = "[" ++ intercalate "," (map show ps) ++ "]"
 
-data LaxPrimitive = Abs | Add | Concatenate {concatenateDimension :: Int} | Var
+data LaxPrimitive = Abs | Add | Concatenate {concatenateDimension :: Int} | Var | Lit
 
 instance Show LaxPrimitive where
     show = primRepresentation
@@ -98,18 +106,21 @@ primNumInput Abs = 1
 primNumInput Add = 2
 primNumInput (Concatenate _) = -1 -- variable number
 primNumInput Var = 1
+primNumInput Lit = 1
 
 primNumOutput :: LaxPrimitive -> Int
 primNumOutput Abs = 1
 primNumOutput Add = 2
 primNumOutput (Concatenate _) = -1
 primNumOutput Var = 1
+primNumOutput Lit = 1
 
 primRepresentation :: LaxPrimitive -> String
 primRepresentation Abs = "abs"
 primRepresentation Add = "add"
 primRepresentation (Concatenate{concatenateDimension = d}) = "concatenate" ++ paramList [Parameter "dimension" (show d)]
 primRepresentation Var = "var"
+primRepresentation Lit = "lit"
 
 allEq :: (Eq a) => [a] -> Bool
 allEq [] = True
@@ -119,18 +130,19 @@ allEq (a1 : (a2 : others)) = a1 == a2 && allEq others
 
 primSimulateApply :: LaxPrimitive -> [LaxTensor] -> [LaxTensor]
 primSimulateApply Add [a, b]
-    | sameShape a b && sameType a b = [LaxTensor (tensorType a) (shape a) ""]
+    | sameShape a b && sameType a b = [LaxTensor (tensorType a) (shape a) "" Tvar] -- might be Tlit or Tvar IDK yet
 primSimulateApply Abs [a] = [a]
 primSimulateApply Concatenate{concatenateDimension = d} (t : otherTensors)
-    | allEq ranks && allEq targetAxes && allEq types = [LaxTensor commonType resultShape ""]
+    | allEq ranks && allEq targetAxes && allEq types = [LaxTensor commonType resultShape "" Tvar]
   where
     ts = t : otherTensors
     ranks = map rank ts
     targetAxes = map (`shapeAtAxis` d) ts
     types = map tensorType ts
-    LaxTensor commonType _ _ = t
+    LaxTensor commonType _ _ _ = t
     resultShape = shapeConcat (map shape ts) d -- TODO: this is wrong, right a shape math lib maybe
 primSimulateApply Var [t] = [t]
+primSimulateApply Lit [t] = [t]
 primSimulateApply _ _ = error "Either not implemented; or you made a mistake or I made a mistake"
 
 type EqInput = LaxTensor
@@ -172,6 +184,7 @@ eqRenameWithSeed (Equation prim inputs outputs) seedName = Equation prim renamed
     renamedInputs = zipWith renameTensor inputs inputNames
     renamedOutputs :: [LaxTensor]
     renamedOutputs = zipWith renameTensor outputs outputNames
+
 data Trace = Trace [Equation] String
 
 instance Show Trace where
@@ -196,9 +209,17 @@ var t = Trace eqs (tensorName t)
     eq = Equation Var [t] (primSimulateApply Var [t])
     renamedEq = eqRenameWithSeed eq (tensorName t ++ ".1")
     eqs = [renamedEq]
+
 unvar :: Trace -> LaxTensor
 unvar (Trace [Equation Var [_] [t]] n) = renameTensor t n
 unvar _ = error "You can only unvar a var"
+
+lit :: LaxTensor -> Trace
+lit t = Trace eqs (tensorName t)
+  where
+    eq = Equation Lit [t] (primSimulateApply Var [t])
+    renamedEq = eqRenameWithSeed eq (tensorName t ++ ".1")
+    eqs = [renamedEq]
 
 mkTrace :: [Equation] -> String -> Trace
 mkTrace eqs s = Trace renamedEqs s
@@ -236,13 +257,56 @@ lconcatenate traces axis = Trace (newEquation : equations) newTraceName
     prim = Concatenate{concatenateDimension = axis}
     outTensors = map (`renameTensor` (newTraceName ++ "." ++ show (length equations + 1))) (primSimulateApply prim inputs)
 
--- trace should reflect the input of the last primitive applied OR last function applied
---
---
+type JaxConst = LaxTensor
+
+type JaxInputVariable = LaxTensor
+
+type JaxOutput = LaxTensor
+
+data JaxExpression = JaxExpression [JaxConst] [JaxInputVariable] [Equation] [JaxOutput]
+
+isVarEquation :: Equation -> Bool
+isVarEquation (Equation Var _ _) = True
+isVarEquation _ = False
+
+isLitEquation :: Equation -> Bool
+isLitEquation (Equation Lit _ _) = True
+isLitEquation _ = False
+
+compileTrace :: Trace -> JaxExpression
+compileTrace tr = JaxExpression consts inVars eqs outVars
+  where
+    allTraceEqs = reverse . traceEquations $ tr
+    eqs = filter isJaxExpressionEquation allTraceEqs
+    isJaxExpressionEquation :: Equation -> Bool
+    isJaxExpressionEquation x = not (isLitEquation x) && not (isVarEquation x)
+
+    litEqs = filter isLitEquation allTraceEqs
+    varEqs = filter isVarEquation allTraceEqs
+
+    consts = map (head . eqOutputs) litEqs
+    inVars = map (head . eqOutputs) varEqs
+
+    outVars = currentTraceOutputs tr
+
+instance Show JaxExpression where
+    show (JaxExpression consts inVars eqs outs) = "{ lambda " ++ constShow ++ " ; " ++ inVarsShow ++ ". let\n" ++ equationsShow ++ "\n in " ++ outVarsShow ++ " }"
+      where
+        constShow = unwords (map show consts)
+        inVarsShow = unwords (map show inVars)
+        equationsShow = intercalate "\n" (map show eqs)
+        outVarsShow = "(" ++ intercalate "," (map tensorName outs) ++ ",)"
 
 -- test function
+-- The resulting Trace of a function corresponds to Jaxpr
 testFunction :: Trace -> Trace -> Trace -> Trace -> Trace
 testFunction a b c d = lconcatenate [v1, v2] 0
   where
     v1 = ladd a b
     v2 = labs c `ladd` labs d
+
+testFunction2 :: Trace -> Trace -> Trace -> Trace -> Trace
+testFunction2 a b c d = ladd s z
+  where
+    z = lit (tensor Tf32 [2, 2] "z" Tlit) -- how do i scope this to only testFunction2 automatically
+    s = ladd a b `ladd` ladd c d
