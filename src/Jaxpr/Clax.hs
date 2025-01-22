@@ -291,7 +291,7 @@ compileTrace tr = JaxExpression consts inVars eqs outVars
     outVars = currentTraceOutputs tr
 
 compilePrettyTrace :: Trace -> JaxExpression
-compilePrettyTrace tr = compileTrace (prettifyTrace tr)
+compilePrettyTrace = prettifyJaxpr . compileTrace
 
 symbolOrder = "abcdefghijklmnopqrstuvwxyz"
 
@@ -346,6 +346,26 @@ prettifyTrace tr = Trace newEquations (traceName tr)
     varnamePool = map varNameFromInt [0, 1 .. (upperBoundNumVars - 1)]
     lookupOfVarNames :: Map.Map String String
     lookupOfVarNames = Map.fromList (zip allCurrentVarNames varnamePool)
+
+renameTensorUsingMap :: LaxTensor -> Map.Map String String -> LaxTensor
+renameTensorUsingMap t m = case Map.lookup (tensorName t) m of
+    Just newName -> renameTensor t newName
+    Nothing -> error "Name not found in lookup"
+
+prettifyJaxpr :: JaxExpression -> JaxExpression
+prettifyJaxpr (JaxExpression consts inVars eqs outs) = JaxExpression renamedConsts renamedInVars renamedEqs renamedOuts
+  where
+    allVars :: [LaxTensor]
+    allVars = consts ++ inVars ++ concatMap eqAllVars eqs ++ outs
+    allVarNames = nub $ map tensorName allVars
+    varnamePool = map varNameFromInt [0, 1 .. (length allVars - 1)]
+    lookupOfVarNames :: Map.Map String String
+    lookupOfVarNames = Map.fromList (zip allVarNames varnamePool)
+
+    renamedConsts = map (`renameTensorUsingMap` lookupOfVarNames) consts
+    renamedInVars = map (`renameTensorUsingMap` lookupOfVarNames) inVars
+    renamedEqs = map (`renameEquationUsingMap` lookupOfVarNames) eqs
+    renamedOuts = map (`renameTensorUsingMap` lookupOfVarNames) outs
 
 instance Show JaxExpression where
     show (JaxExpression consts inVars eqs outs) = "{ lambda " ++ constShow ++ " ; " ++ inVarsShow ++ ". let\n\t" ++ equationsShow ++ "\n in " ++ outVarsShow ++ " }"

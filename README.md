@@ -38,16 +38,16 @@ Output:
   in (d,) }
 ```
 
-Jaxpr from Haskell (the variable naming is different, but equivalent)
+Jaxpr from Haskell (the variable naming might different, but equivalent)
 
 ```haskell
 f a b = labs (ladd a b)
 
 Output:
-{ lambda  ; c:f32[2,2] d:f32[2,2]. let
-        a:f32[2,2] = add c d
-        b:f32[2,2] = abs a
- in (b,) }
+{ lambda  ; a:f32[2,2] b:f32[2,2]. let
+        c:f32[2,2] = add a b
+        d:f32[2,2] = abs c
+ in (d,) }
 ```
 
 ### Example 2: ((a+b) + (c+d)) + (some tensor created in a function)
@@ -75,12 +75,12 @@ f a b c d = ((a `ladd` b) `ladd` (c `ladd` d)) `ladd` (lit (tensor Tf32 [2,2] "z
 -- a nicer api will come soon
 
 Output:
-{ lambda b:f32[2,2] ; k:f32[2,2] l:f32[2,2] g:f32[2,2] h:f32[2,2]. let
-        e:f32[2,2] = add k l
-        f:f32[2,2] = add g h
-        a:f32[2,2] = add e f
-        c:f32[2,2] = add a b
- in (c,) }
+{ lambda a:f32[2,2] ; b:f32[2,2] c:f32[2,2] d:f32[2,2] e:f32[2,2]. let
+        f:f32[2,2] = add b c
+        g:f32[2,2] = add d e
+        h:f32[2,2] = add f g
+        i:f32[2,2] = add h a
+ in (i,) }
 
 ```
 
