@@ -1,65 +1,75 @@
 module Jaxpr.Blx.Trace where
 
+import Data.List (intercalate)
 import Jaxpr.Blx.Primitives
 import Jaxpr.Blx.Tensor
 
 data TracePrimitive = forall a. (BlxPrimitive a) => TracePrimitive a
 
+instance BlxPrimitive TracePrimitive where
+    numInputs = numInputs
+    numOutputs = numOutputs
+    parameters = parameters
+    applyPrimitive = applyPrimitive
+    symbol = symbol
+
+instance Show TracePrimitive where show (TracePrimitive a) = showPrimitive a
+
 data TraceEntry = TraceEntry TracePrimitive [BlxTensor] [BlxTensor]
 
-traceEntryInputs :: TraceEntry -> [BlxTensor]
-traceEntryInputs (TraceEntry _ inputs _) = inputs
+entryPrimitive :: TraceEntry -> TracePrimitive
+entryPrimitive (TraceEntry prim _ _) = prim
 
-traceEntryOutputs :: TraceEntry -> [BlxTensor]
-traceEntryOutputs (TraceEntry _ _ outputs) = outputs
+entryInputs :: TraceEntry -> [BlxTensor]
+entryInputs (TraceEntry _ inputs _) = inputs
 
-traceEntryPrimitive :: TraceEntry -> TracePrimitive
-traceEntryPrimitive (TraceEntry primitive _ _) = primitive
+entryOutputs :: TraceEntry -> [BlxTensor]
+entryOutputs (TraceEntry _ _ outputs) = outputs
 
-data BlxTrace a = Trace [TraceEntry] String
+entryRenameWithSeed :: TraceEntry -> String -> TraceEntry
+entryRenameWithSeed (TraceEntry prim inputs outputs) seedName = TraceEntry prim renamedInputs renamedOutputs
+  where
+    inputSeedName = seedName ++ ".in."
+    outputSeedName = seedName ++ ".out."
 
--- instance Show (BlxTrace a) where
---     show (Trace eqs n) = "Trace {" ++ n ++ "} [ \n\t" ++ intercalate "\n\t" (map show eqs) ++ "\n]"
+    inputNames = map ((inputSeedName ++) . show) [1, 2 .. (length inputs)]
+    outputNames = map ((outputSeedName ++) . show) [1, 2 .. (length outputs)]
 
--- traceName :: BlxTrace -> String
--- traceName (Trace _ n) = n
+    renamedInputs :: [BlxTensor]
+    renamedInputs = zipWith renameTensor inputs inputNames
+    renamedOutputs :: [BlxTensor]
+    renamedOutputs = zipWith renameTensor outputs outputNames
 
--- currentTraceOutputs :: BlxTrace -> [BlxTensor]
--- currentTraceOutputs (Trace [] _) = []
--- currentTraceOutputs (Trace (BlxEquation _ _ outputs : _) _) = outputs
+instance Show TraceEntry where show (TraceEntry prim inputs outputs) = "(" ++ intercalate "," (map show outputs) ++ ")" ++ " = " ++ show prim ++ " " ++ unwords (map tensorName inputs)
 
--- traceEquations :: BlxTrace -> [BlxEquation]
--- traceEquations (Trace eqs _) = eqs
+data BlxTrace = Trace [TraceEntry] String
 
--- traceJoinEquations :: [BlxTrace] -> [BlxEquation]
--- traceJoinEquations = concatMap traceEquations . reverse
+instance Show BlxTrace where
+    show (Trace entries name) = "Trace {" ++ name ++ "} [\n\t" ++ intercalate "\n\t" (map show entries) ++ "\n]"
 
--- var :: TensorType -> [Int] -> String -> BlxTrace
--- var ttype tshape tname = Trace eqs (tensorName t)
---   where
---     t = BlxTensor ttype tshape tname Tvar
---     eq = BlxEquation Var [t] (primApply Var [t])
---     renamedEq = eqRenameWithSeed eq (tensorName t ++ ".1")
---     eqs = [renamedEq]
+traceName :: BlxTrace -> String
+traceName (Trace _ n) = n
 
--- unvar :: BlxTrace -> BlxTensor
--- unvar (Trace [BlxEquation Var [_] [BlxTensor tt ts tn Tvar]] n) = renameTensor t n where t = BlxTensor tt ts tn Tvar
--- unvar _ = error "You can only unvar a var"
+currentTraceOutputs :: BlxTrace -> [BlxTensor]
+currentTraceOutputs (Trace [] _) = []
+currentTraceOutputs (Trace (lastEntry : _) _) = entryOutputs lastEntry
 
--- lit :: TensorType -> [Int] -> String -> BlxTrace
--- lit ttype tshape tname = Trace eqs (tensorName t)
---   where
---     t = BlxTensor ttype tshape tname Tlit
---     eq = BlxEquation Lit [t] (primApply Lit [t])
---     renamedEq = eqRenameWithSeed eq (tensorName t ++ ".1")
---     eqs = [renamedEq]
+traceEntries :: BlxTrace -> [TraceEntry]
+traceEntries (Trace entries _) = entries
 
--- unlit :: BlxTrace -> BlxTensor
--- unlit (Trace [BlxEquation Lit [_] [BlxTensor tt ts tn Tlit]] n) = renameTensor t n where t = BlxTensor tt ts tn Tlit
--- unlit _ = error "You can only unlit a lit"
+traceJoinEntries :: [BlxTrace] -> [TraceEntry]
+traceJoinEntries = concatMap traceEntries . reverse
 
--- mkTrace :: [BlxEquation] -> String -> BlxTrace
--- mkTrace eqs s = Trace renamedEqs s
---   where
---     renamedEqs = zipWith eqRenameWithSeed eqs seedNames
---     seedNames = map (((s ++ ".") ++) . show) (reverse [1, 2 .. (length eqs)])
+mkTensorTrace :: TensorType -> [Int] -> String -> Designation -> BlxTrace
+mkTensorTrace ttype tshape tname tdesig = Trace entries tname
+  where
+    entries = [entryRenameWithSeed entry (tname ++ ".1")]
+    entry = TraceEntry prim [t] (applyPrimitive prim [t])
+    prim = TracePrimitive Var
+    t = BlxTensor ttype tshape tname tdesig
+
+var :: TensorType -> [Int] -> String -> BlxTrace
+var ttype tshape tname = mkTensorTrace ttype tshape tname Tvar
+
+lit :: TensorType -> [Int] -> String -> BlxTrace
+lit ttype tshape tname = mkTensorTrace ttype tshape tname Tvar

@@ -1,44 +1,54 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+
+
 module Jaxpr.Blx.Equation where
 
 import Jaxpr.Blx.Primitives
 import Jaxpr.Blx.Tensor
 
-type EqInput = BlxTensor
 
-type EqOutput = BlxTensor
+class SimpleEquation (a b c) where 
+    
 
-type EqPrimitive = BlxPrimitive
+-- type EqInput = BlxTensor
 
-data BlxEquation a = (BlxPrimitive a) => BlxEquation a [EqInput] [EqOutput]
+-- type EqOutput = BlxTensor
 
-instance Show (BlxEquation a) where
-    show (BlxEquation prim inputs outputs) = showOutputs ++ " = " ++ showPrimitive prim ++ " " ++ showInputs
-      where
-        showInputs = unwords (map tensorName inputs)
-        showOutputs = unwords (map show outputs)
+-- type EqPrimitive = BlxPrimitive
 
-equation :: (BlxPrimitive a) => a -> [BlxTensor] -> [BlxTensor] -> BlxEquation a
-equation = BlxEquation
+-- data BlxEquation a = (BlxPrimitive a) => BlxEquation a [EqInput] [EqOutput]
 
-eqPrimitive :: (BlxPrimitive a) => BlxEquation a -> a
-eqPrimitive (BlxEquation prim _ _) = prim
+-- instance Show (BlxEquation a) where
+--     show (BlxEquation prim inputs outputs) = showOutputs ++ " = " ++ showPrimitive prim ++ " " ++ showInputs
+--       where
+--         showInputs = unwords (map tensorName inputs)
+--         showOutputs = unwords (map show outputs)
 
-eqInputs :: (BlxPrimitive a) => BlxEquation a -> [BlxTensor]
-eqInputs (BlxEquation _ inputs _) = inputs
+-- equation :: (BlxPrimitive a) => a -> [BlxTensor] -> [BlxTensor] -> BlxEquation a
+-- equation = BlxEquation
 
-eqOutputs :: (BlxPrimitive a) => BlxEquation a -> [BlxTensor]
-eqOutputs (BlxEquation _ _ outputs) = outputs
+-- eqPrimitive :: (BlxPrimitive a) => BlxEquation a -> a
+-- eqPrimitive (BlxEquation prim _ _) = prim
 
-eqRenameWithSeed :: (BlxPrimitive a) => BlxEquation a -> String -> BlxEquation a
-eqRenameWithSeed (BlxEquation prim inputs outputs) seedName = BlxEquation prim renamedInputs renamedOutputs
-  where
-    inputSeedName = seedName ++ ".in."
-    outputSeedName = seedName ++ ".out."
+-- eqInputs :: (BlxPrimitive a) => BlxEquation a -> [BlxTensor]
+-- eqInputs (BlxEquation _ inputs _) = inputs
 
-    inputNames = map ((inputSeedName ++) . show) [1, 2 .. (length inputs)]
-    outputNames = map ((outputSeedName ++) . show) [1, 2 .. (length outputs)]
+-- eqOutputs :: (BlxPrimitive a) => BlxEquation a -> [BlxTensor]
+-- eqOutputs (BlxEquation _ _ outputs) = outputs
 
-    renamedInputs :: [BlxTensor]
-    renamedInputs = zipWith renameTensor inputs inputNames
-    renamedOutputs :: [BlxTensor]
-    renamedOutputs = zipWith renameTensor outputs outputNames
+-- eqRenameWithSeed :: (BlxPrimitive a) => BlxEquation a -> String -> BlxEquation a
+-- eqRenameWithSeed (BlxEquation prim inputs outputs) seedName = BlxEquation prim renamedInputs renamedOutputs
+--   where
+--     inputSeedName = seedName ++ ".in."
+--     outputSeedName = seedName ++ ".out."
+
+--     inputNames = map ((inputSeedName ++) . show) [1, 2 .. (length inputs)]
+--     outputNames = map ((outputSeedName ++) . show) [1, 2 .. (length outputs)]
+
+--     renamedInputs :: [BlxTensor]
+--     renamedInputs = zipWith renameTensor inputs inputNames
+--     renamedOutputs :: [BlxTensor]
+--     renamedOutputs = zipWith renameTensor outputs outputNames
