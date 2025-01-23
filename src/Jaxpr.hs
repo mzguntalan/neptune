@@ -1,6 +1,8 @@
 module Jaxpr (
-    module Core,
+    module Bx,
+    module Np,
 )
 where
 
-import Jaxpr.Blx as Core
+import Jaxpr.Blx as Bx
+import Jaxpr.Numpy as Np

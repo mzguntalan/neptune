@@ -67,6 +67,7 @@ library
     other-modules:    
                       Jaxpr
                       Jaxpr.Blx
+                      Jaxpr.Numpy
 
     -- LANGUAGE extensions used by modules in this package.
     other-extensions: DataKinds
