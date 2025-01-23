@@ -19,15 +19,11 @@ class BlxPrimitive a where
     symbol :: a -> String
 
 showPrimitive :: (BlxPrimitive a) => a -> String
-showPrimitive prim = symbol prim ++ "[" ++ intercalate "," (map (\(x, y) -> x ++ "=" ++ y) (parameters prim)) ++ "]"
+showPrimitive prim
+    | null (parameters prim) = symbol prim
+    | otherwise = symbol prim ++ "[" ++ intercalate "," (map (\(x, y) -> x ++ "=" ++ y) (parameters prim)) ++ "]"
 
 data Abs = Abs
-
-data Add = Add
-
-data Concatenate
-    = Concatenate
-        Int -- dimension
 
 instance BlxPrimitive Abs where
     numInputs Abs = 1
@@ -37,6 +33,8 @@ instance BlxPrimitive Abs where
     applyPrimitive Abs _ = error errorSomethingWentWrong
     symbol Abs = "abs"
 
+data Add = Add
+
 instance BlxPrimitive Add where
     numInputs Add = 1
     numOutputs Add = 1
@@ -45,10 +43,15 @@ instance BlxPrimitive Add where
     applyPrimitive Add _ = error errorSomethingWentWrong
     symbol Add = "add"
 
+data Concatenate
+    = Concatenate
+        Int -- dimension
+
 instance BlxPrimitive Concatenate where
     numInputs (Concatenate _) = -1
-    numOutputs (Concatenate _) = 1
-    parameters (Concatenate d) = [("dimension", show d)]
-    applyPrimitive (Concatenate d) (t : ts) = [BlxTensor (tensorType t) (shapeConcat (map tensorShape (t : ts)) d) "" (tensorDesignation t)]
-    applyPrimitive _ _ = error errorSomethingWentWrong
-    symbol (Concatenate _) = "concatenate"
+
+-- numOutputs (Concatenate _) = 1
+-- parameters (Concatenate d) = [("dimension", show d)]
+-- applyPrimitive (Concatenate d) (t : ts) = [BlxTensor (tensorType t) (shapeConcat (map tensorShape (t : ts)) d) "" (tensorDesignation t)]
+-- applyPrimitive _ _ = error errorSomethingWentWrong
+-- symbol (Concatenate _) = "concatenate"

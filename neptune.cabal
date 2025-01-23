@@ -70,6 +70,8 @@ library
                       Jaxpr.Blx.Primitives
                       Jaxpr.Blx.Tensor
                       Jaxpr.Blx.Equation
+                      Jaxpr.Blx.Trace
+                      Jaxpr.Blx.Lax
                       Jaxpr.Numpy
 
     -- LANGUAGE extensions used by modules in this package.
