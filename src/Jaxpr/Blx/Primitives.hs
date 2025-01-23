@@ -49,9 +49,28 @@ data Concatenate
 
 instance BlxPrimitive Concatenate where
     numInputs (Concatenate _) = -1
+    numOutputs (Concatenate _) = 1
+    parameters (Concatenate d) = [("dimension", show d)]
+    applyPrimitive (Concatenate d) (t : ts) = [BlxTensor (tensorType t) (shapeConcat (map tensorShape (t : ts)) d) "" (tensorDesignation t)]
+    applyPrimitive _ _ = error errorSomethingWentWrong
+    symbol (Concatenate _) = "concatenate"
 
--- numOutputs (Concatenate _) = 1
--- parameters (Concatenate d) = [("dimension", show d)]
--- applyPrimitive (Concatenate d) (t : ts) = [BlxTensor (tensorType t) (shapeConcat (map tensorShape (t : ts)) d) "" (tensorDesignation t)]
--- applyPrimitive _ _ = error errorSomethingWentWrong
--- symbol (Concatenate _) = "concatenate"
+data Var = Var
+
+instance BlxPrimitive Var where
+    numInputs Var = 1
+    numOutputs Var = 1
+    parameters Var = []
+    applyPrimitive Var [t] = [t]
+    applyPrimitive _ _ = error errorSomethingWentWrong
+    symbol Var = "var"
+
+data Lit = Lit
+
+instance BlxPrimitive Lit where
+    numInputs Lit = 1
+    numOutputs Lit = 1
+    parameters Lit = []
+    applyPrimitive Lit [t] = [t]
+    applyPrimitive _ _ = error errorSomethingWentWrong
+    symbol Lit = "lit"
