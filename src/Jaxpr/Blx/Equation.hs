@@ -1,5 +1,6 @@
 module Jaxpr.Blx.Equation where
 
+import Jaxpr.Blx.Primitives
 import Jaxpr.Blx.Tensor
 
 type EqInput = BlxTensor
@@ -8,27 +9,27 @@ type EqOutput = BlxTensor
 
 type EqPrimitive = BlxPrimitive
 
-data BlxEquation = BlxEquation EqPrimitive [EqInput] [EqOutput]
+data BlxEquation a = (BlxPrimitive a) => BlxEquation a [EqInput] [EqOutput]
 
-instance Show BlxEquation where
-    show (BlxEquation prim inputs outputs) = showOutputs ++ " = " ++ show prim ++ " " ++ showInputs
+instance Show (BlxEquation a) where
+    show (BlxEquation prim inputs outputs) = showOutputs ++ " = " ++ showPrimitive prim ++ " " ++ showInputs
       where
         showInputs = unwords (map tensorName inputs)
         showOutputs = unwords (map show outputs)
 
-equation :: EqPrimitive -> [BlxTensor] -> [BlxTensor] -> BlxEquation
+equation :: (BlxPrimitive a) => a -> [BlxTensor] -> [BlxTensor] -> BlxEquation a
 equation = BlxEquation
 
-eqPrimitive :: BlxEquation -> BlxPrimitive
+eqPrimitive :: (BlxPrimitive a) => BlxEquation a -> a
 eqPrimitive (BlxEquation prim _ _) = prim
 
-eqInputs :: BlxEquation -> [BlxTensor]
+eqInputs :: (BlxPrimitive a) => BlxEquation a -> [BlxTensor]
 eqInputs (BlxEquation _ inputs _) = inputs
 
-eqOutputs :: BlxEquation -> [BlxTensor]
+eqOutputs :: (BlxPrimitive a) => BlxEquation a -> [BlxTensor]
 eqOutputs (BlxEquation _ _ outputs) = outputs
 
-eqRenameWithSeed :: BlxEquation -> String -> BlxEquation
+eqRenameWithSeed :: (BlxPrimitive a) => BlxEquation a -> String -> BlxEquation a
 eqRenameWithSeed (BlxEquation prim inputs outputs) seedName = BlxEquation prim renamedInputs renamedOutputs
   where
     inputSeedName = seedName ++ ".in."
