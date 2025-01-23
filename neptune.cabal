@@ -67,6 +67,8 @@ library
     other-modules:    
                       Jaxpr
                       Jaxpr.Blx
+                      Jaxpr.Blx.Primitives
+                      Jaxpr.Blx.Tensor
                       Jaxpr.Numpy
 
     -- LANGUAGE extensions used by modules in this package.
