@@ -5,7 +5,7 @@
 
 module Jaxpr.Blx where
 
-import Data.List (findIndex, intercalate, nub)
+import Data.List (findIndex, intercalate, nub, nubBy)
 import Data.Map.Strict qualified as Map
 
 -- Blx Before Jax, Above Lax
@@ -23,6 +23,9 @@ type Axis = Int -- in future might be literal
 type AxisSize = Int -- in future might be literal
 
 type Shape = [AxisSize]
+
+showAxisWithParenthesis :: [Int] -> String
+showAxisWithParenthesis as = "(" ++ intercalate "," (map show as) ++ ")"
 
 data Designation = Tvar | Tlit
 
@@ -99,7 +102,7 @@ instance Show BlxPrimParameter where
 paramList :: [BlxPrimParameter] -> String
 paramList ps = "[" ++ intercalate "," (map show ps) ++ "]"
 
-data BlxPrimitive = Abs | Add | Concatenate {concatenateDimension :: Int} | Var | Lit
+data BlxPrimitive = Abs | Add | Concatenate {concatenateDimension :: Int} | BroadcastInDim {broadcastInDimDimensions :: [Int], broadcastInDimShape :: Shape} | Var | Lit
 
 instance Show BlxPrimitive where
     show = primRepresentation
@@ -109,6 +112,7 @@ primNumInput :: BlxPrimitive -> Int
 primNumInput Abs = 1
 primNumInput Add = 2
 primNumInput (Concatenate _) = -1 -- variable number
+primNumInput BroadcastInDim{broadcastInDimDimensions = _, broadcastInDimShape = _} = 1
 primNumInput Var = 1
 primNumInput Lit = 1
 
@@ -116,6 +120,7 @@ primNumOutput :: BlxPrimitive -> Int
 primNumOutput Abs = 1
 primNumOutput Add = 2
 primNumOutput (Concatenate _) = -1
+primNumOutput BroadcastInDim{broadcastInDimDimensions = _, broadcastInDimShape = _} = 1
 primNumOutput Var = 1
 primNumOutput Lit = 1
 
@@ -123,6 +128,10 @@ primRepresentation :: BlxPrimitive -> String
 primRepresentation Abs = "abs"
 primRepresentation Add = "add"
 primRepresentation (Concatenate{concatenateDimension = d}) = "concatenate" ++ paramList [BlxPrimParameter "dimension" (show d)]
+primRepresentation BroadcastInDim{broadcastInDimDimensions = _dimensions, broadcastInDimShape = _shape} = "broadcast_in_dim" ++ paramList [a, b]
+  where
+    a = BlxPrimParameter "broadcast_dimensions" (showAxisWithParenthesis _dimensions)
+    b = BlxPrimParameter "shape" (showAxisWithParenthesis _shape)
 primRepresentation Var = "var"
 primRepresentation Lit = "lit"
 
@@ -145,6 +154,8 @@ primApply Concatenate{concatenateDimension = d} (t : otherTensors)
     types = map tensorType ts
     BlxTensor commonType _ _ _ = t
     resultShape = shapeConcat (map tensorShape ts) d -- TODO: this is wrong, right a shape math lib maybe
+primApply BroadcastInDim{broadcastInDimDimensions = _dimensions, broadcastInDimShape = _shape} [t]
+    | _dimensions == tensorShape t = [BlxTensor (tensorType t) _shape "" (tensorDesignation t)]
 primApply Var [t] = [t]
 primApply Lit [t] = [t]
 primApply _ _ = error "Either not implemented; or you made a mistake or I made a mistake"
@@ -267,6 +278,21 @@ lconcatenate traces axis = Trace (newEquation : equations) newTraceName
     prim = Concatenate{concatenateDimension = axis}
     outTensors = map (`renameTensor` (newTraceName ++ "." ++ show (length equations + 1))) (primApply prim inputs)
 
+-- limited to rank 0 tensors for now
+lbroadcastInDim :: BlxTrace -> Shape -> BlxTrace
+lbroadcastInDim tr targetShape = Trace (newEquation : equations) newTraceName
+  where
+    p = BroadcastInDim{broadcastInDimDimensions = [], broadcastInDimShape = targetShape}
+    onlyTensorInTraceOutput = case currentTraceOutputs tr of
+        [t] -> t
+        _ -> error ("There should only be 1 and only 1 tensor in the trace " ++ traceName tr)
+    outputs = map (`renameTensor` (newTraceName ++ "." ++ show (length equations + 1))) (primApply p [onlyTensorInTraceOutput])
+    newEquation = BlxEquation p [onlyTensorInTraceOutput] outputs
+    newTraceName = traceName tr
+    equations = traceEquations tr
+
+-- end l
+
 type JaxConst = BlxTensor
 
 type JaxInputVariable = BlxTensor
@@ -373,8 +399,10 @@ prettifyJaxpr (JaxExpression consts inVars eqs outs) = JaxExpression renamedCons
     lookupOfVarNames :: Map.Map String String
     lookupOfVarNames = Map.fromList (zip allVarNames varnamePool)
 
-    renamedConsts = map (`renameTensorUsingMap` lookupOfVarNames) consts
-    renamedInVars = map (`renameTensorUsingMap` lookupOfVarNames) inVars
+    sameName :: BlxTensor -> BlxTensor -> Bool
+    sameName t1 t2 = tensorName t1 == tensorName t2
+    renamedConsts = nubBy sameName $ map (`renameTensorUsingMap` lookupOfVarNames) consts
+    renamedInVars = nubBy sameName $ map (`renameTensorUsingMap` lookupOfVarNames) inVars
     renamedEqs = map (`renameEquationUsingMap` lookupOfVarNames) eqs
     renamedOuts = map (`renameTensorUsingMap` lookupOfVarNames) outs
 
@@ -403,5 +431,17 @@ testFunction2 a b c d = ladd s z
 testFunction3 :: BlxTrace -> BlxTrace -> BlxTrace -> BlxTrace -> BlxTrace
 testFunction3 a b c d = ladd s z
   where
-    z = lit Tf32 [2, 2] "z" -- how do i scope this to only testFunction3 vs 2 automatically
+    z = lit Tf32 [2, 2] "z.3" -- how do i scope this to only testFunction3 vs 2 automatically and it's function stack number?
     s = ladd a b `ladd` ladd c (testFunction2 a b c d)
+
+testFunction4 :: BlxTrace -> BlxTrace -> BlxTrace
+testFunction4 a b = (a `ladd` b) `ladd` c
+  where
+    c = lbroadcastInDim v [2, 2]
+    v = lit Tf32 [] "v"
+
+testFunction5 :: BlxTrace -> BlxTrace -> Int -> BlxTrace
+testFunction5 a b i = (a `ladd` b) `ladd` c
+  where
+    c = lbroadcastInDim v [2, 2]
+    v = lit Tf32 [] ("Just[" ++ show i ++ "]")

@@ -66,10 +66,6 @@ library
     -- Modules included in this library but not exported.
     other-modules:    
                       Jaxpr
-                      Jaxpr.Interpreter
-                      Jaxpr.Lax
-                      Jaxpr.Equation
-                      Jaxpr.Grammar
                       Jaxpr.Blx
 
     -- LANGUAGE extensions used by modules in this package.
