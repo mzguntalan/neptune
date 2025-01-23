@@ -7,7 +7,6 @@ module Jaxpr.Blx where
 
 import Data.List (findIndex, intercalate, nub, nubBy)
 import Data.Map.Strict qualified as Map
-import GHC.Desugar (AnnotationWrapper (AnnotationWrapper))
 
 -- Blx Before Jax, Above Lax
 -- This is a slightly modified mirror of Lax from Jax to Accomodate the Trace Approach
@@ -103,12 +102,14 @@ instance Show BlxPrimParameter where
 paramList :: [BlxPrimParameter] -> String
 paramList ps = "[" ++ intercalate "," (map show ps) ++ "]"
 
+-- why are these types?
+-- feels right at the moment, i guess
 data BlxPrimitive
     = Abs
     | Acos
     | Acosh
     | Add
-    | AfterAll
+    | AfterAll -- no documentation: experimental
     | ApproxMaxK
     | ApproxMinK
     | Argmax
@@ -244,6 +245,43 @@ data BlxPrimitive
     | Transpose
     | ZerosLikeArray
     | Zeta
+    | AssociativeScan -- start of control flow
+    | Cond
+    | ForiLoop
+    | MapF -- map in lax
+    | Scan
+    | Select
+    | SelectN
+    | Switch
+    | WhileLoop -- end of control flow
+    | StopGradient -- start of gradient operators
+    | CustomLinearSolve
+    | CustomRoot -- end of gradient operators
+    | AllGather -- start of parallel operators
+    | AllToAll
+    | Psum
+    | PsumScatter
+    | Pmax
+    | Pmin
+    | Pmean
+    | Ppermute
+    | Pshuffle
+    | Pswapaxes
+    | AxisIndex -- end of parallel operators
+    | WithShardingConstraint -- sharding related operators
+    | Cholesky -- start of linear algebra operators
+    | Eig
+    | Eigh
+    | Hessenberg
+    | Lu
+    | HouseholderProduct
+    | Qdwh
+    | Qr
+    | Schur
+    | Svd
+    | TriangularSolve
+    | Tridiagonal
+    | TridiagonalSolve -- end of linear algebra opeartors
     | Var
     | Lit
 
