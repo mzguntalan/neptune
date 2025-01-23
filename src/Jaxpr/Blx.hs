@@ -7,6 +7,7 @@ module Jaxpr.Blx where
 
 import Data.List (findIndex, intercalate, nub, nubBy)
 import Data.Map.Strict qualified as Map
+import GHC.Desugar (AnnotationWrapper (AnnotationWrapper))
 
 -- Blx Before Jax, Above Lax
 -- This is a slightly modified mirror of Lax from Jax to Accomodate the Trace Approach
@@ -102,7 +103,149 @@ instance Show BlxPrimParameter where
 paramList :: [BlxPrimParameter] -> String
 paramList ps = "[" ++ intercalate "," (map show ps) ++ "]"
 
-data BlxPrimitive = Abs | Add | Concatenate {concatenateDimension :: Int} | BroadcastInDim {broadcastInDimDimensions :: [Int], broadcastInDimShape :: Shape} | Var | Lit
+data BlxPrimitive
+    = Abs
+    | Acos
+    | Acosh
+    | Add
+    | AfterAll
+    | ApproxMaxK
+    | ApproxMinK
+    | Argmax
+    | Argmin
+    | Asin
+    | Asinh
+    | Atan
+    | Atan2
+    | Atanh
+    | BatchMatMul
+    | BesselI0e
+    | BesselI1e
+    | BetaInc
+    | BitcastConvertType
+    | BitwiseAnd
+    | BitwiseNot
+    | BitwiseOr
+    | BitwiseXor
+    | Broadcast
+    | BroadcastInDim {broadcastInDimDimensions :: [Int], broadcastInDimShape :: Shape}
+    | BroadcastShapes
+    | BroadcastToRank
+    | BroadcastedIota
+    | Cbrt
+    | Ceil
+    | Clamp
+    | Clz
+    | Collapse
+    | Complex
+    | Concatenate {concatenateDimension :: Int}
+    | Conj
+    | Conv
+    | ConvertElementType
+    | ConvDimensionNumbers
+    | ConvGeneralDilated
+    | ConvGeneralDilatedLocal
+    | ConvGeneralDilatedPatches
+    | ConvTranspose
+    | ConvWithGeneralPadding
+    | Cos
+    | Cosh
+    | Cumlogsumexp
+    | Cummax
+    | Cummin
+    | Cumprod
+    | Cumsum
+    | Digamma
+    | Div
+    | Dot
+    | DotGeneral
+    | DynamicIndexInDim
+    | DynamicSlice
+    | DynamicSliceInDim
+    | DynamicUpdateIndexInDim
+    | DynamicUpdateSlice
+    | DynamicUpdateSliceInDim
+    | Equals -- Eq in Lax
+    | Erf
+    | Erfc
+    | ErfInv
+    | Exp
+    | ExpandDims
+    | Expm1
+    | Fft
+    | Floor
+    | Full
+    | FullLike
+    | Gather
+    | GreaterOrEqual -- ge in lax
+    | Greater -- gt in lax
+    | Igamma
+    | Imag
+    | IndexInDim
+    | IndexTake
+    | IntegerPow
+    | Iota
+    | IsFinite
+    | LessOrEqual -- le in lax
+    | Lgamma
+    | Log
+    | Log1p
+    | Logistic
+    | LessThan -- lt in lax
+    | Max
+    | Min
+    | Mul
+    | NotEqual -- ne in lax
+    | Neg
+    | NextAfter
+    | OptimizationBarrier
+    | Pad
+    | PlatformDependent
+    | Polygamma
+    | PopulationCount
+    | Pow
+    | RandomGammaGrad
+    | Real
+    | Reciprocal
+    | Reduce
+    | ReducePrecision
+    | ReduceWindow
+    | Rem
+    | Reshape
+    | Rev
+    | RngBitGenerator
+    | RngUniform
+    | Round
+    | Rsqrt
+    | Scatter
+    | ScatterAdd
+    | ScatterApply
+    | ScatterMax
+    | ScatterMin
+    | ScatterMul
+    | ShiftLeft
+    | ShiftRightArithmetic
+    | ShiftRightLogical
+    | Sign
+    | Sin
+    | Sinh
+    | Slice
+    | SliceInDim
+    | Sort
+    | SortKeyVal
+    | Split
+    | Sqrt
+    | Square
+    | Squeeze
+    | Sub
+    | Tan
+    | Tanh
+    | TokK
+    | Transpose
+    | ZerosLikeArray
+    | Zeta
+    | Var
+    | Lit
 
 instance Show BlxPrimitive where
     show = primRepresentation
