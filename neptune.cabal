@@ -69,7 +69,6 @@ library
                       Jaxpr.Blx
                       Jaxpr.Blx.Primitives
                       Jaxpr.Blx.Tensor
-                      Jaxpr.Blx.Equation
                       Jaxpr.Blx.Trace
                       Jaxpr.Blx.Lax
                       Jaxpr.Compiler
