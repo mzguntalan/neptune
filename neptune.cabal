@@ -61,6 +61,7 @@ library
     -- Modules exported by the library.
     exposed-modules: 
                      Neptune 
+                     Neptune.Core.Tensor
                      Neptune.ArrayMath
 
     -- Modules included in this library but not exported.
