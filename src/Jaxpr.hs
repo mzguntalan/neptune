@@ -4,6 +4,7 @@ module Jaxpr (
 )
 where
 
+import Jaxpr.Blx as Blx
 import Jaxpr.Blx.Lax as Blx
 import Jaxpr.Blx.Primitives as Blx
 import Jaxpr.Blx.Tensor as Blx
