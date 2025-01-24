@@ -6,6 +6,7 @@
 module Jaxpr.Blx.Primitives where
 
 import Data.List (intercalate)
+import Debug.Trace (trace)
 import Jaxpr.Blx.Tensor
 
 errorSomethingWentWrong :: String
@@ -36,7 +37,7 @@ instance BlxPrimitive Abs where
 data Add = Add
 
 instance BlxPrimitive Add where
-    numInputs Add = 1
+    numInputs Add = 2
     numOutputs Add = 1
     parameters Add = []
     applyPrimitive Add [a, b] = [c] where c = BlxTensor (tensorType a) (tensorShape b) "" Tvar

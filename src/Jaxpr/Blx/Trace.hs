@@ -7,11 +7,11 @@ import Jaxpr.Blx.Tensor
 data TracePrimitive = forall a. (BlxPrimitive a) => TracePrimitive a
 
 instance BlxPrimitive TracePrimitive where
-    numInputs = numInputs
-    numOutputs = numOutputs
-    parameters = parameters
-    applyPrimitive = applyPrimitive
-    symbol = symbol
+    numInputs (TracePrimitive p) = numInputs p
+    numOutputs (TracePrimitive p) = numOutputs p
+    parameters (TracePrimitive p) = parameters p
+    applyPrimitive (TracePrimitive p) = applyPrimitive p
+    symbol (TracePrimitive p) = symbol p
 
 instance Eq TracePrimitive where
     a == b = show a == show b
@@ -43,7 +43,13 @@ entryRenameWithSeed (TraceEntry prim inputs outputs) seedName = TraceEntry prim 
     renamedOutputs :: [BlxTensor]
     renamedOutputs = zipWith renameTensor outputs outputNames
 
-instance Show TraceEntry where show (TraceEntry prim inputs outputs) = "(" ++ intercalate "," (map show outputs) ++ ")" ++ " = " ++ show prim ++ " " ++ unwords (map tensorName inputs)
+instance Show TraceEntry where
+    show (TraceEntry prim inputs outputs) = outputsShow ++ " = " ++ show prim ++ " " ++ unwords (map tensorName inputs)
+      where
+        outputsShow = case length outputs of
+            0 -> error "NO OUTPUT for primitive! It does nothing!"
+            1 -> intercalate "," (map show outputs)
+            _ -> "(" ++ intercalate "," (map show outputs) ++ ")"
 
 data BlxTrace = Trace [TraceEntry] String
 
@@ -66,7 +72,8 @@ traceJoinEntries = concatMap traceEntries . reverse
 mkTensorTrace :: TensorType -> [Int] -> String -> Designation -> BlxTrace
 mkTensorTrace ttype tshape tname tdesig = Trace entries tname
   where
-    entries = [entryRenameWithSeed entry (tname ++ ".1")]
+    -- entries = [entryRenameWithSeed entry (tname ++ ".1")]
+    entries = [entry]
     entry = TraceEntry prim [t] (applyPrimitive prim [t])
     prim = TracePrimitive Var
     t = BlxTensor ttype tshape tname tdesig
