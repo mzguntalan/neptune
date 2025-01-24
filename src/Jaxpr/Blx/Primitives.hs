@@ -75,3 +75,19 @@ instance BlxPrimitive Lit where
     applyPrimitive Lit [t] = [t]
     applyPrimitive _ _ = error errorSomethingWentWrong
     symbol Lit = "lit"
+
+data BroadcastInDim = BroadcastInDim [Int] [Int]
+
+instance BlxPrimitive BroadcastInDim where
+    numInputs (BroadcastInDim _ _) = 1
+    numOutputs (BroadcastInDim _ _) = 1
+    parameters (BroadcastInDim dimensions shape) = [("dimensions", show dimensions), ("shape", showAxisWithParenthesis shape)]
+
+    applyPrimitive (BroadcastInDim dimensions shape) [t]
+        | and $ zipWith isAxisPromotable (map (shapeAtAxis t) dimensions) shape =
+            [ tensor (tensorType t) shape "" (tensorDesignation t)
+            ]
+      where
+        isAxisPromotable a _ = a == 1
+    applyPrimitive (BroadcastInDim _ _) _ = error errorSomethingWentWrong
+    symbol (BroadcastInDim _ _) = "broadcast_in_dim"

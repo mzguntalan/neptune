@@ -75,11 +75,11 @@ mkTensorTrace ttype tshape tname tdesig = Trace entries tname
     -- entries = [entryRenameWithSeed entry (tname ++ ".1")]
     entries = [entry]
     entry = TraceEntry prim [t] (applyPrimitive prim [t])
-    prim = TracePrimitive Var
+    prim = if tdesig == Tvar then TracePrimitive Var else TracePrimitive Lit
     t = BlxTensor ttype tshape tname tdesig
 
 var :: TensorType -> [Int] -> String -> BlxTrace
 var ttype tshape tname = mkTensorTrace ttype tshape tname Tvar
 
 lit :: TensorType -> [Int] -> String -> BlxTrace
-lit ttype tshape tname = mkTensorTrace ttype tshape tname Tvar
+lit ttype tshape tname = mkTensorTrace ttype tshape tname Tlit

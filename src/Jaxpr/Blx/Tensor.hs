@@ -17,7 +17,7 @@ type Shape = [AxisSize]
 showAxisWithParenthesis :: [Int] -> String
 showAxisWithParenthesis as = "(" ++ intercalate "," (map show as) ++ ")"
 
-data Designation = Tvar | Tlit
+data Designation = Tvar | Tlit deriving (Eq)
 
 data BlxTensor = BlxTensor TensorType [AxisSize] String Designation
 

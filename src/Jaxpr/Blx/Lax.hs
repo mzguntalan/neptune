@@ -36,6 +36,10 @@ lconcatenate :: [BlxTrace] -> Axis -> BlxTrace
 lconcatenate traces axis = laxApply (TracePrimitive (Concatenate axis)) traces
 
 -- -- limited to rank 0 tensors for now
+lbroadcastInDim :: BlxTrace -> Shape -> BlxTrace
+lbroadcastInDim tr targetShape = laxApply (TracePrimitive (BroadcastInDim [] targetShape)) [tr]
+
+-- -- limited to rank 0 tensors for now
 -- lbroadcastInDim :: BlxTrace -> Shape -> BlxTrace
 -- lbroadcastInDim tr targetShape = Trace (newEquation : equations) newTraceName
 --   where
