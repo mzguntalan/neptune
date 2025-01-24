@@ -13,6 +13,9 @@ instance BlxPrimitive TracePrimitive where
     applyPrimitive = applyPrimitive
     symbol = symbol
 
+instance Eq TracePrimitive where
+    a == b = show a == show b
+
 instance Show TracePrimitive where show (TracePrimitive a) = showPrimitive a
 
 data TraceEntry = TraceEntry TracePrimitive [BlxTensor] [BlxTensor]

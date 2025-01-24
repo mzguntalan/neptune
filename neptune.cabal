@@ -72,6 +72,7 @@ library
                       Jaxpr.Blx.Equation
                       Jaxpr.Blx.Trace
                       Jaxpr.Blx.Lax
+                      Jaxpr.Compiler
                       Jaxpr.Numpy
 
     -- LANGUAGE extensions used by modules in this package.
