@@ -38,16 +38,13 @@ class (StrictTensor a) => AutomaticTensor a where
     promoteToShape :: a -> [Int] -> a
     demoteToShape :: a -> [Int] -> a
 
-rankOf :: (BehavesLikeATensor a b) => a b -> Int
+rankOf :: (StrictTensor a) => a -> Int
 rankOf = length . shape
 
-tensorCopyWithNewName :: (BehavesLikeATensor a b) => a b -> String -> a b
-tensorCopyWithNewName = renameTensor
+tensorCopyWithNewName :: (StrictTensor a, Named a) => a -> String -> a
+tensorCopyWithNewName = renameTo
 
-showTensor :: (BehavesLikeATensor a b) => a b -> String
+showTensor :: (Named a, StrictTensor a) => a -> String
 showTensor t = nameOf t ++ "[" ++ show (shape t) ++ "]"
-
-instance TensorType Blx.TensorType where
-    symbol = show
 
 -- instance BehavesLikeATensor Blx.BlxTensor Blx.TensorType where
