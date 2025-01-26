@@ -1,6 +1,8 @@
 module Neptune.Core.Tensor2 where
 
-import Data.List (intercalate)
+import Data.List (intercalate, nub)
+import Data.Map.Strict qualified as Map
+import Data.Maybe (fromJust)
 
 data Abstract m c = (Eq m, Eq c) => Abstract m [c]
 
@@ -35,11 +37,14 @@ data LaxTensorProperties = LaxTensorProperties [Int] LaxPrimitiveType deriving (
 instance Show LaxTensorProperties where
     show (LaxTensorProperties s t) = show s ++ ":" ++ show t
 
-data Program a = Core [Computation a] | Block [Program a] deriving (Eq)
+data Program a = Origin (Computation a) String | Core [Computation a] | Block [Program a] deriving (Eq) -- String is any identifier
 
 type ComputedAbstract m = Abstract m (Program m)
 
 type AbstractLaxTensor = ComputedAbstract LaxTensorProperties
+
+instance Eq AbstractLaxTensor where
+    Abstract m1 p1 == Abstract m2 p2 = m1 == m2 && p1 == p2
 
 instance Show AbstractLaxTensor where
     show (Abstract t cs) = "AbstractLaxTensor {" ++ show t ++ "}" ++ "[\n\t" ++ intercalate "\n\t" (map show cs) ++ "\n]"
@@ -59,11 +64,11 @@ applyOperationOnAbstractLaxTensor p abstractinputs = map wrap outputTensors
     newProgram = Core [newComputation]
     combinedPrograms = Block $ concatMap getCs abstractinputs
 
-mkAbstractLaxTensor :: [Int] -> LaxPrimitiveType -> AbstractLaxTensor
-mkAbstractLaxTensor shape tt = Abstract t [program]
+mkAbstractLaxTensor :: [Int] -> LaxPrimitiveType -> String -> AbstractLaxTensor
+mkAbstractLaxTensor shape tt name = Abstract t [program]
   where
     t = LaxTensorProperties shape tt
-    program = Core [computation Make [t]]
+    program = Origin (computation Make [t]) name
 
 data Make = Make
 
@@ -81,6 +86,7 @@ instance Show (Computation LaxTensorProperties) where
 instance Show (Program LaxTensorProperties) where
     show (Core cs) = "Core (\n" ++ intercalate "\n\t" (map show cs) ++ "\n)"
     show (Block ps) = "Block [\n" ++ intercalate "\n-------\n" (map show ps) ++ "\n]"
+    show (Origin s origin) = "Origin: " ++ origin ++ " {" ++ show s ++ "}"
 
 data Abs = Abs
 
@@ -135,3 +141,47 @@ shapeSingleConcat _ _ _ = error "Shape should be non empty list"
 shapeConcat :: [Shape] -> Axis -> Shape
 shapeConcat (shap : shapes) axis = foldl (\x y -> shapeSingleConcat x y axis) shap shapes
 shapeConcat [] _ = error "no shapes to concat"
+
+justOne :: [a] -> a
+justOne [a] = a
+justOne _ = error "Should only return 1"
+
+ladd :: AbstractLaxTensor -> AbstractLaxTensor -> AbstractLaxTensor
+ladd x y = justOne $ applyOperationOnAbstractLaxTensor Add [x, y]
+
+labs :: AbstractLaxTensor -> AbstractLaxTensor
+labs x = justOne $ applyOperationOnAbstractLaxTensor Abs [x]
+
+lconcatenate :: [AbstractLaxTensor] -> Int -> AbstractLaxTensor
+lconcatenate xs d = justOne $ applyOperationOnAbstractLaxTensor (Concatenate d) xs
+
+---
+symbolsForNaming :: String
+symbolsForNaming = "abcdefghijklmnopqrstuvwxyz"
+
+-- this needs fixing
+varNameFromInt :: Int -> String
+varNameFromInt x
+    | 0 <= x && x < length symbolsForNaming = [symbolsForNaming !! x]
+    | x >= length symbolsForNaming = "a" ++ varNameFromInt (x - length symbolsForNaming)
+    | otherwise = error "Shouldn't happen"
+
+instance Ord AbstractLaxTensor where
+    compare :: AbstractLaxTensor -> AbstractLaxTensor -> Ordering
+    compare a b
+        | a == b = EQ
+    compare a1 a2 = compare (show a1) (show a2)
+
+-- w :: Map.Map AbstractLaxTensor Int
+makeMapFromAlt :: [AbstractLaxTensor] -> Map.Map AbstractLaxTensor Int
+makeMapFromAlt xs = Map.fromList (zip noDupsXs [0, 1 .. length xs])
+  where
+    noDupsXs = nub xs
+
+makeIntsFromAlt :: [AbstractLaxTensor] -> [Int]
+makeIntsFromAlt xs = map (\x -> fromJust $ Map.lookup x m) xs
+  where
+    m = makeMapFromAlt xs
+
+nameAlts :: [AbstractLaxTensor] -> [String]
+nameAlts xs = map varNameFromInt (makeIntsFromAlt xs)
