@@ -7,49 +7,6 @@ module Neptune.Core.Tensor where
 
 import Data.List (intercalate)
 
--- class BehaveLikeAType a where
---     symbol :: a -> String
---     castable :: a -> a -> Bool
---     convertible :: a -> a -> Bool
---     (==) :: a -> a -> Bool
-
--- -- a tensor is a vector
--- class (BehaveLikeAType b) => Typed a b where
---     tensorType :: a -> b
---     castTo :: a -> b -> a
-
--- class (Num b) => ConcreteTensor a b where -- No idea what this should be yet
---     valueOf :: a -> b
-
--- class Named a where
---     nameOf :: a -> String
---     renameTo :: a -> String -> a
-
--- class StrictTensor a where -- maybe
---     shape :: a -> [Int]
-
---     -- these are probably lax primitives
---     absTensor :: a -> a
---     addTensor :: a -> a -> a
---     concatenate :: [a] -> Int -> a
-
--- class (StrictTensor a) => AutomaticTensor a where
---     promoteToShape :: a -> [Int] -> a
---     demoteToShape :: a -> [Int] -> a
-
--- rankOf :: (StrictTensor a) => a -> Int
--- rankOf = length . shape
-
--- tensorCopyWithNewName :: (StrictTensor a, Named a) => a -> String -> a
--- tensorCopyWithNewName = renameTo
-
--- showTensor :: (Named a, StrictTensor a) => a -> String
--- showTensor t = nameOf t ++ "[" ++ show (shape t) ++ "]"
-
--- instance BehavesLikeATensor Blx.BlxTensor Blx.TensorType where
---
---
-
 data Abstract m c = (Eq m, Eq c) => Abstract m [c]
 
 getM :: Abstract m c -> m
@@ -75,6 +32,17 @@ instance Eq (Computation a) where
 
 computation :: (Eq a, Operation p a) => p -> [a] -> Computation a
 computation operation inputs = Computation operation inputs (applyOperation operation inputs)
+
+applyOperationOnAbstract ::
+    (Eq m, Operation p m) => p -> [Abstract m (Computation m)] -> [Abstract m (Computation m)]
+applyOperationOnAbstract p abstractinputs = map wrap outputsMs
+  where
+    wrap o = Abstract o (newComputationByP : combinedComputations)
+    newComputationByP = computation p inputs
+    (Computation _ _ outputsMs) = newComputationByP
+    inputs = map getM abstractinputs
+
+    combinedComputations = concatMap getCs abstractinputs
 
 data LaxPrimitiveType = Tf32 | Ti32 | Tstr deriving (Eq, Show)
 
@@ -105,17 +73,6 @@ instance Show (Computation LaxTensorProperties) where
       where
         os = "(" ++ intercalate "," (map show inputs) ++ ")"
         is = unwords (map show outputs)
-
-applyOperationOnAbstract ::
-    (Eq m, Operation p m) => p -> [Abstract m (Computation m)] -> [Abstract m (Computation m)]
-applyOperationOnAbstract p abstractinputs = map wrap outputsMs
-  where
-    wrap o = Abstract o (newComputationByP : combinedComputations)
-    newComputationByP = computation p inputs
-    (Computation _ _ outputsMs) = newComputationByP
-    inputs = map getM abstractinputs
-
-    combinedComputations = concatMap getCs abstractinputs
 
 data Abs = Abs
 
