@@ -83,7 +83,22 @@ data LaxTensorProperties = LaxTensorProperties [Int] LaxPrimitiveType deriving (
 instance Show LaxTensorProperties where
     show (LaxTensorProperties s t) = show s ++ ":" ++ show t
 
-data AbstractLaxTensor = Abstact LaxTensorProperties (Computation LaxTensorProperties) deriving (Eq, Show)
+type AbstractLaxTensor = Abstract LaxTensorProperties (Computation LaxTensorProperties)
+
+instance Show AbstractLaxTensor where
+    show (Abstract t cs) = "AbstractLaxTensor {" ++ show t ++ "}" ++ "[\n\t" ++ intercalate "\n\t" (map show cs) ++ "]"
+
+mkAbstractLaxTensor :: [Int] -> LaxPrimitiveType -> AbstractLaxTensor
+mkAbstractLaxTensor shape tensorType = Abstract i [computation Make [i]]
+  where
+    i = LaxTensorProperties shape tensorType
+
+data Make = Make
+
+instance Operation Make LaxTensorProperties where
+    applyOperation Make [x] = [x]
+    applyOperation _ _ = error "WrongNumberInputsError"
+    symbol Make _ = "Make"
 
 instance Show (Computation LaxTensorProperties) where
     show (Computation p inputs outputs) = os ++ " = " ++ symbol p inputs ++ " " ++ is
