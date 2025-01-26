@@ -6,6 +6,10 @@ import Data.Maybe (fromJust)
 
 data Abstract m c = (Eq m, Eq c) => Abstract m [c]
 
+instance Eq (Abstract m c) where
+    (Abstract m1 cs1) == (Abstract m2 cs2) = m1 == m2 && cs1 == cs2
+
+-- An Abstract m c, says that cs are steps to make m
 getM :: Abstract m c -> m
 getM (Abstract m _) = m
 
@@ -42,9 +46,6 @@ data Program a = Origin (Computation a) String | Core [Computation a] | Block [P
 type ComputedAbstract m = Abstract m (Program m)
 
 type AbstractLaxTensor = ComputedAbstract LaxTensorProperties
-
-instance Eq AbstractLaxTensor where
-    Abstract m1 p1 == Abstract m2 p2 = m1 == m2 && p1 == p2
 
 instance Show AbstractLaxTensor where
     show (Abstract t cs) = "AbstractLaxTensor {" ++ show t ++ "}" ++ "[\n\t" ++ intercalate "\n\t" (map show cs) ++ "\n]"
@@ -155,7 +156,7 @@ labs x = justOne $ applyOperationOnAbstractLaxTensor Abs [x]
 lconcatenate :: [AbstractLaxTensor] -> Int -> AbstractLaxTensor
 lconcatenate xs d = justOne $ applyOperationOnAbstractLaxTensor (Concatenate d) xs
 
----
+--- below is compiler
 symbolsForNaming :: String
 symbolsForNaming = "abcdefghijklmnopqrstuvwxyz"
 
