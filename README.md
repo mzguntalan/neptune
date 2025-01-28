@@ -4,6 +4,10 @@ JAX interop-able library for numeric and machine learning computations in Haskel
 
 The neptune library probably won't be look like numpy, but it might. Neptune would hopefully make numeric computing in Haskell feel like Haskell.
 
+## Currently
+
+Currently, trying to challenge myself in writing an abstraction for this approach which I will use to unify the approaches for different APIs.
+
 ## Demo
 
 [Because of heavy early development, the demo would probably be outdated very quickly]
