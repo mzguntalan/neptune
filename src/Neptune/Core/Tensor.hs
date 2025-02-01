@@ -9,6 +9,7 @@
 module Neptune.Core.Tensor where
 
 import Data.List (intercalate)
+import GHC.Base (TypeLitSort (TypeLitSymbol))
 import Neptune.Core.Program
 
 data OutputDescription a = (Eq a) => OutputDescription a
@@ -45,3 +46,31 @@ addTensor a b
     | otherwise = error "either autobroadcast, or give up"
   where
     prim = PrimitiveInstruction (Zprim "add" [] (OutputDescription (getShape a)))
+
+absTensor :: Tensor -> Tensor
+absTensor a = Immediate (PrimitiveInstruction (Zprim "abs" [] (OutputDescription (getShape a)))) [a]
+
+broadcastInDim :: (Show a) => a -> Shape -> Tensor
+broadcastInDim val shape = Immediate (PrimitiveInstruction (Zprim "broadcast_in_dim" [("dim", "[]"), ("shape", show shape), ("val", show val)] (OutputDescription shape))) []
+
+allEq :: (Eq a) => [a] -> Bool
+allEq [] = True
+allEq [_] = True
+allEq (x : (y : others)) = x == y && allEq others
+
+shapeAllEq :: [Tensor] -> Bool
+shapeAllEq ts = allEq shapes
+  where
+    shapes = map getShape ts
+
+sumTensors :: [Tensor] -> Tensor
+sumTensors (t : ts)
+    | shapeAllEq (t : ts) = Immediate (PrimitiveInstruction (Zprim "sum" [] (OutputDescription (getShape t)))) (t : ts)
+    | otherwise = error "shape error"
+sumTensors [] = error "empty"
+
+ones :: Shape -> Tensor
+ones = broadcastInDim (1.0 :: Float)
+
+zeros :: Shape -> Tensor
+zeros = broadcastInDim (0.0 :: Float)
