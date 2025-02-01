@@ -6,7 +6,7 @@ The neptune library probably won't be look like numpy, but it might. Neptune wou
 
 ## Currently
 
-Currently, trying to challenge myself in writing an abstraction for this approach which I will use to unify the approaches for different APIs.
+**paused** to make time for other things. The abstraction is done at (`Neptune.Core.Program`). Will resume soon.
 
 ## Demo
 
