@@ -4,12 +4,9 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
-{-# HLINT ignore "Use newtype instead of data" #-}
-
 module Neptune.Core.Tensor where
 
 import Data.List (intercalate)
-import GHC.Base (TypeLitSort (TypeLitSymbol))
 import Neptune.Core.Program
 
 data OutputDescription a = (Eq a) => OutputDescription a
