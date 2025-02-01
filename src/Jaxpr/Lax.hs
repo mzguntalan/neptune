@@ -1,6 +1,7 @@
 module Jaxpr.Lax where
 
 import Neptune.Core.Program
+import Neptune.Core.Tensor2 (shapeConcat)
 
 -- Abstract Tensors
 
@@ -19,7 +20,7 @@ instance Eq (TensorOrigin a) where
 
 type Shape = [Int]
 
-data TensorType = Tf32 | Ti32 deriving (Eq, Show)
+data TensorType = Tf32 | Ti32 | Tstr deriving (Eq, Show)
 
 data TensorDescription = TensorDescription Shape TensorType (TensorOrigin String) deriving (Eq, Show)
 
@@ -61,3 +62,17 @@ labs a
   where
     shape = getShape a
     ty = getType a
+
+lconcatenate :: [Tensor] -> Int -> Tensor
+lconcatenate (t : ts) dim = Immediate (PrimitiveInstruction (LaxPrimitive "concatenate" [("dimension", show dim)] (TensorDescription shape ty FromComputation))) tensors
+  where
+    shape = shapeConcat (map getShape tensors) dim
+    tensors = t : ts
+    ty = getType t
+lconcatenate [] _ = error "no"
+
+testFunction :: Tensor -> Tensor -> Tensor
+testFunction a b = lconcatenate [a, b, c] 0
+  where
+    c = ladd a b `ladd` z
+    z = abstractTensor (getShape a) (getType b)
