@@ -1,4 +1,4 @@
-module Nepure.Core.Program where
+module Neptune.Core.Program where
 
 import Data.List (intercalate)
 
@@ -24,7 +24,7 @@ listify :: Program a -> String -> [NaiveEquation]
 listify (Immediate prim inputPrograms) seedName = topEq : otherEqs
   where
     topEq = NaiveEquation seedName rhs
-    rhs = show prim ++ unwords namesOfInputs
+    rhs = show prim ++ " " ++ unwords namesOfInputs
     namesOfInputs = map (((seedName ++ ".") ++) . show) [1, 2 .. length inputPrograms]
     otherEqs = concat $ zipWith listify inputPrograms namesOfInputs
 listify (ProgramList programs) seedName = concat $ zipWith listify programs programSeedNames
@@ -33,3 +33,8 @@ listify (ProgramList programs) seedName = concat $ zipWith listify programs prog
 
 prettyPrint :: Program a -> String
 prettyPrint p = intercalate "\n" (map show $ listify p "<>")
+
+lastPrimitiveInstructionInProgram :: Program a -> PrimitiveInstruction a
+lastPrimitiveInstructionInProgram (Immediate prim _) = prim
+lastPrimitiveInstructionInProgram (ProgramList []) = error "empty program"
+lastPrimitiveInstructionInProgram (ProgramList (p : _)) = lastPrimitiveInstructionInProgram p
