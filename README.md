@@ -8,6 +8,8 @@ The neptune library probably won't be look like numpy, but it might. Neptune wou
 
 **paused** to make time for other things. The abstraction is done at (`Neptune.Core.Program`). Will resume soon.
 
+Everything would be abstracted as a `Program`, and so functions can receive and output `Program`s which can then be compiled to `jaxpr` or others - which means this becomes very flexible.
+
 ## Demo
 
 [Because of heavy early development, the demo would probably be outdated very quickly]
