@@ -186,3 +186,26 @@ makeIntsFromAlt xs = map (\x -> fromJust $ Map.lookup x m) xs
 
 nameAlts :: [AbstractLaxTensor] -> [String]
 nameAlts xs = map varNameFromInt (makeIntsFromAlt xs)
+
+-- For compilation
+data Named a = Named a String
+
+instance Show (Named a) where
+    show (Named _ s) = s
+
+nameOf :: Named a -> String
+nameOf (Named _ name) = name
+
+altToNlt :: AbstractLaxTensor -> Named LaxTensorProperties
+altToNlt (Abstract m cs) = Named m (show cs)
+
+-- for now, everything is vartensor
+data JaxExpression = JaxExpression [LaxTensorProperties] [LaxTensorProperties] [Program LaxTensorProperties] [LaxTensorProperties]
+
+-- instance Show JaxExpression where
+--     show (JaxExpression consts inVars entries outs) = "{ lambda " ++ constShow ++ " ; " ++ inVarsShow ++ ". let\n\t" ++ entriesShow ++ "\n in " ++ outVarsShow ++ " }"
+--       where
+--         constShow = unwords (map show consts)
+--         inVarsShow = unwords (map show inVars)
+--         entriesShow = intercalate "\n\t" (map show entries)
+--         outVarsShow = "(" ++ intercalate "," (map tensorName outs) ++ ",)"
