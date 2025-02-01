@@ -63,6 +63,7 @@ library
                      Neptune 
                      Neptune.Core.Tensor
                      Neptune.Core.Tensor2
+                     Neptune.Core.Program
                      Neptune.ArrayMath
 
     -- Modules included in this library but not exported.
