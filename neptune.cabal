@@ -69,13 +69,8 @@ library
     -- Modules included in this library but not exported.
     other-modules:    
                       Jaxpr
-                      Jaxpr.Blx
-                      Jaxpr.Blx.Primitives
-                      Jaxpr.Blx.Tensor
-                      Jaxpr.Blx.Trace
-                      Jaxpr.Blx.Lax
+                      Jaxpr.Lax
                       Jaxpr.Compiler
-                      Jaxpr.Numpy
 
     -- LANGUAGE extensions used by modules in this package.
     other-extensions: DataKinds
