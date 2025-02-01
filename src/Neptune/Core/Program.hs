@@ -2,15 +2,13 @@ module Nepure.Core.Program where
 
 import Data.List (intercalate)
 
-data PrimitiveInstruction a = (Eq a, Show a) => PrimitiveInstruction a [(String, String)]
+data PrimitiveInstruction a = (Eq a, Show a) => PrimitiveInstruction a
 
 instance Eq (PrimitiveInstruction a) where
-    (PrimitiveInstruction prim1 params1) == (PrimitiveInstruction prim2 params2) = prim1 == prim2 && params1 == params2
+    (PrimitiveInstruction prim1) == (PrimitiveInstruction prim2) = prim1 == prim2
 
 instance Show (PrimitiveInstruction a) where
-    show (PrimitiveInstruction prim parameterTuples) = show prim ++ "[" ++ intercalate "," (map showPair parameterTuples) ++ "]"
-      where
-        showPair (paramName, paramValue) = intercalate "=" [paramName, paramValue]
+    show (PrimitiveInstruction prim) = show prim
 
 data Program a = Immediate (PrimitiveInstruction a) [Program a] | ProgramList [Program a] deriving (Eq)
 
@@ -35,14 +33,3 @@ listify (ProgramList programs) seedName = concat $ zipWith listify programs prog
 
 prettyPrint :: Program a -> String
 prettyPrint p = intercalate "\n" (map show $ listify p "<>")
-
-var :: String -> Program String
-var name = createvar
-  where
-    createvar = createVarInstruction name
-
-createVarInstruction :: String -> Program String
-createVarInstruction name = Immediate (PrimitiveInstruction "VAR" [("opt", name)]) []
-
-add :: Program String -> Program String -> Program String
-add var1 var2 = Immediate (PrimitiveInstruction "ADD" []) [var1, var2]
