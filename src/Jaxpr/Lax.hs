@@ -71,8 +71,8 @@ lconcatenate (t : ts) dim = Immediate (PrimitiveInstruction (LaxPrimitive "conca
     ty = getType t
 lconcatenate [] _ = error "no"
 
-testFunction :: Tensor -> Tensor -> Tensor
-testFunction a b = lconcatenate [a, b, c] 0
+testFunction :: Tensor -> Tensor -> (Tensor, Tensor)
+testFunction a b = (lconcatenate [a, b, c] 0, z)
   where
-    c = ladd a b `ladd` z
+    c = z
     z = abstractTensor (getShape a) (getType b)
